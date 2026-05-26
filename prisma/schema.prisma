@@ -1,0 +1,122 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  VIEWER
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  LOST
+  WON
+}
+
+enum MessageChannel {
+  EMAIL
+  WHATSAPP
+  BOTH
+}
+
+enum MessageTrigger {
+  ON_LEAD_CREATED
+  AFTER_DAYS
+  MANUAL
+}
+
+enum DeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+  CANCELED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         UserRole @default(VIEWER)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Lead {
+  id                String       @id @default(cuid())
+  name              String
+  email             String
+  phone             String
+  acceptedDataUsage Boolean      @default(true)
+  source            String       @default("landing")
+  status            LeadStatus   @default(NEW)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  schedules         MessageSchedule[]
+  logs              MessageLog[]
+}
+
+model IntegrationSettings {
+  id                    String   @id @default(cuid())
+  resendApiKey          String?
+  resendFromEmail       String?
+  resendFromName        String?
+  evolutionApiUrl       String?
+  evolutionApiKey       String?
+  evolutionInstanceName String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model MessageTemplate {
+  id          String         @id @default(cuid())
+  name        String
+  channel     MessageChannel
+  trigger     MessageTrigger
+  delayDays   Int            @default(0)
+  subject     String?
+  body        String
+  active      Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  schedules   MessageSchedule[]
+  logs        MessageLog[]
+}
+
+model MessageSchedule {
+  id          String         @id @default(cuid())
+  leadId      String
+  templateId  String
+  channel     MessageChannel
+  status      DeliveryStatus @default(PENDING)
+  scheduledFor DateTime
+  sentAt      DateTime?
+  errorMessage String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  lead         Lead           @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  template     MessageTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+}
+
+model MessageLog {
+  id           String         @id @default(cuid())
+  leadId       String
+  templateId   String?
+  channel      MessageChannel
+  status       DeliveryStatus
+  provider     String?
+  providerId   String?
+  errorMessage String?
+  createdAt    DateTime       @default(now())
+  lead          Lead           @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  template      MessageTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+}
