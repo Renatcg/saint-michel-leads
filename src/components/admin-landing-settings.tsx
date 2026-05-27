@@ -564,6 +564,96 @@ export function AdminLandingSettings({ initialSettings, canEdit }: { initialSett
             </div>
           </div>
 
+          <div className="rounded-lg border border-black/10 bg-neutral-50 p-4">
+            <h3 className="text-lg font-semibold">Página de sucesso</h3>
+            <div className="mt-4 space-y-4">
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-neutral-700">Texto pequeno acima do título</span>
+                <input
+                  className="w-full rounded-lg border border-black/15 px-3 py-3 outline-none focus:border-[#98743e]"
+                  disabled={!canEdit}
+                  value={settings.successPageEyebrow}
+                  onChange={(event) => setSettings({ ...settings, successPageEyebrow: event.target.value })}
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-neutral-700">Título principal</span>
+                <textarea
+                  className="min-h-24 w-full rounded-lg border border-black/15 px-3 py-3 outline-none focus:border-[#98743e]"
+                  disabled={!canEdit}
+                  value={settings.successPageHeadline}
+                  onChange={(event) => setSettings({ ...settings, successPageHeadline: event.target.value })}
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-neutral-700">Texto de apoio</span>
+                <textarea
+                  className="min-h-28 w-full rounded-lg border border-black/15 px-3 py-3 outline-none focus:border-[#98743e]"
+                  disabled={!canEdit}
+                  value={settings.successPageDescription}
+                  onChange={(event) => setSettings({ ...settings, successPageDescription: event.target.value })}
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-neutral-700">Título do bloco de preparação</span>
+                <input
+                  className="w-full rounded-lg border border-black/15 px-3 py-3 outline-none focus:border-[#98743e]"
+                  disabled={!canEdit}
+                  value={settings.successPageCardTitle}
+                  onChange={(event) => setSettings({ ...settings, successPageCardTitle: event.target.value })}
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-neutral-700">Texto do bloco de preparação</span>
+                <textarea
+                  className="min-h-24 w-full rounded-lg border border-black/15 px-3 py-3 outline-none focus:border-[#98743e]"
+                  disabled={!canEdit}
+                  value={settings.successPageCardText}
+                  onChange={(event) => setSettings({ ...settings, successPageCardText: event.target.value })}
+                />
+              </label>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block">
+                  <span className="mb-2 block text-sm font-medium text-neutral-700">Texto do botão</span>
+                  <input
+                    className="w-full rounded-lg border border-black/15 px-3 py-3 outline-none focus:border-[#98743e]"
+                    disabled={!canEdit}
+                    value={settings.successPageButtonText}
+                    onChange={(event) => setSettings({ ...settings, successPageButtonText: event.target.value })}
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-2 block text-sm font-medium text-neutral-700">Cor do botão</span>
+                  <input
+                    className="h-12 w-full rounded-lg border border-black/15 px-2"
+                    disabled={!canEdit}
+                    type="color"
+                    value={settings.successPageButtonColor}
+                    onChange={(event) => setSettings({ ...settings, successPageButtonColor: event.target.value })}
+                  />
+                </label>
+              </div>
+
+              <div className="rounded-lg bg-neutral-950 p-4 text-white">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#d8bd85]">{settings.successPageEyebrow}</p>
+                <h4 className="mt-3 text-2xl font-semibold leading-tight">{settings.successPageHeadline}</h4>
+                <p className="mt-3 text-sm leading-6 text-white/75">{settings.successPageDescription}</p>
+                <div className="mt-4 rounded-lg border border-white/20 bg-white/10 p-3">
+                  <p className="font-semibold">{settings.successPageCardTitle}</p>
+                  <p className="mt-1 text-xs leading-5 text-white/72">{settings.successPageCardText}</p>
+                </div>
+                <div className="mt-4 rounded-lg px-4 py-3 text-center text-xs font-bold uppercase tracking-[0.14em]" style={{ backgroundColor: settings.successPageButtonColor }}>
+                  {settings.successPageButtonText}
+                </div>
+              </div>
+            </div>
+          </div>
+
           {canEdit ? (
             <button className="rounded-lg bg-[#98743e] px-5 py-3 font-semibold text-white disabled:opacity-60" type="button" disabled={loading} onClick={save}>
               Salvar landing

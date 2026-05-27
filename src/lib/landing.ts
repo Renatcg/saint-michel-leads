@@ -36,6 +36,13 @@ export type LandingSettings = {
   successMessage: string;
   errorMessage: string;
   salesPhone: string;
+  successPageEyebrow: string;
+  successPageHeadline: string;
+  successPageDescription: string;
+  successPageCardTitle: string;
+  successPageCardText: string;
+  successPageButtonText: string;
+  successPageButtonColor: string;
 };
 
 export const LANDING_SETTINGS_KEY = "__landing_settings";
@@ -77,6 +84,15 @@ export const defaultLandingSettings: LandingSettings = {
   successMessage: "Cadastro recebido. Em breve nossa equipe entra em contato.",
   errorMessage: "Não foi possível enviar agora. Tente novamente.",
   salesPhone: "",
+  successPageEyebrow: "Cadastro confirmado",
+  successPageHeadline: "Parabéns. Você acaba de dar um passo importante para conquistar seu novo lar.",
+  successPageDescription:
+    "Seu cadastro garante o recebimento antecipado de informações privilegiadas sobre este lançamento. Fique atento ao seu e-mail e às mensagens da construtora para sair na frente.",
+  successPageCardTitle: "Prepare-se antes das unidades abrirem para venda",
+  successPageCardText:
+    "Antecipar sua análise de crédito pode deixar sua jornada mais rápida, mais segura e mais estratégica quando as oportunidades forem liberadas.",
+  successPageButtonText: "Falar agora com a equipe de corretores",
+  successPageButtonColor: "#98743e",
 };
 
 export async function getLandingSettings() {
@@ -170,6 +186,13 @@ export function normalizeLandingSettings(settings: Partial<LandingSettings>): La
     successMessage: settings.successMessage || defaultLandingSettings.successMessage,
     errorMessage: settings.errorMessage || defaultLandingSettings.errorMessage,
     salesPhone: settings.salesPhone || defaultLandingSettings.salesPhone,
+    successPageEyebrow: settings.successPageEyebrow || defaultLandingSettings.successPageEyebrow,
+    successPageHeadline: settings.successPageHeadline || defaultLandingSettings.successPageHeadline,
+    successPageDescription: settings.successPageDescription || defaultLandingSettings.successPageDescription,
+    successPageCardTitle: settings.successPageCardTitle || defaultLandingSettings.successPageCardTitle,
+    successPageCardText: settings.successPageCardText || defaultLandingSettings.successPageCardText,
+    successPageButtonText: settings.successPageButtonText || defaultLandingSettings.successPageButtonText,
+    successPageButtonColor: settings.successPageButtonColor || defaultLandingSettings.successPageButtonColor,
   };
 }
 
