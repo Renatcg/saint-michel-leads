@@ -252,7 +252,8 @@ export function AdminMessagesManager({ initialTemplates, canEdit }: { initialTem
             </label>
 
             <div className="rounded-lg bg-neutral-100 p-3 text-xs leading-5 text-neutral-600">
-              Variáveis disponíveis: {"{{nome}}"}, {"{{email}}"} e {"{{telefone}}"}.
+              Variáveis disponíveis: {"{{nome}}"}, {"{{email}}"}, {"{{telefone}}"} e {"{{link_corretores}}"}.
+              Para criar botão, use: [Texto do botão]({"{{link_corretores}}"}).
             </div>
 
             <div className="flex flex-wrap gap-2">

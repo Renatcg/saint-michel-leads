@@ -14,11 +14,20 @@ type ResendSettings = {
   fromName: string;
 };
 
-export function renderMessageTemplate(template: string, lead: Pick<Lead, "name" | "email" | "phone">) {
+type TemplateVariables = {
+  salesContactUrl?: string;
+};
+
+export function renderMessageTemplate(
+  template: string,
+  lead: Pick<Lead, "name" | "email" | "phone">,
+  variables: TemplateVariables = {},
+) {
   return template
     .replaceAll("{{nome}}", lead.name)
     .replaceAll("{{email}}", lead.email)
-    .replaceAll("{{telefone}}", lead.phone);
+    .replaceAll("{{telefone}}", lead.phone)
+    .replaceAll("{{link_corretores}}", variables.salesContactUrl ?? "");
 }
 
 export function expandTemplateChannels(channel: MessageChannel) {
@@ -67,8 +76,9 @@ async function sendEmailSchedule(schedule: TemplateWithLead) {
       throw new Error("Mensagem sem assunto de e-mail.");
     }
 
-    const subject = renderMessageTemplate(schedule.template.subject, schedule.lead);
-    const text = renderMessageTemplate(schedule.template.body, schedule.lead);
+    const salesContactUrl = getSalesContactUrl(settings);
+    const subject = renderMessageTemplate(schedule.template.subject, schedule.lead, { salesContactUrl });
+    const text = renderMessageTemplate(schedule.template.body, schedule.lead, { salesContactUrl });
     const resend = new Resend(settings.apiKey);
     const result = await resend.emails.send({
       from: formatFrom(settings),
@@ -152,13 +162,32 @@ function formatFrom(settings: ResendSettings) {
   return `${settings.fromName} <${settings.fromEmail}>`;
 }
 
+function getSalesContactUrl(settings: ResendSettings) {
+  return (
+    process.env.SALES_TEAM_CONTACT_URL ||
+    `mailto:${settings.fromEmail}?subject=${encodeURIComponent("Quero falar com a equipe de corretores")}`
+  );
+}
+
 function textToHtml(text: string) {
+  return text
+    .split("\n")
+    .map((line) => {
+      const button = line.match(/^\s*\[([^\]]+)\]\((https?:\/\/[^)]+|mailto:[^)]+)\)\s*$/);
+
+      if (button) {
+        return `<p style="margin:28px 0;"><a href="${escapeHtml(button[2])}" style="display:inline-block;background:#98743e;color:#ffffff;text-decoration:none;padding:14px 22px;border-radius:8px;font-weight:700;">${escapeHtml(button[1])}</a></p>`;
+      }
+
+      return `<p>${line ? escapeHtml(line) : "&nbsp;"}</p>`;
+    })
+    .join("");
+}
+
+function escapeHtml(text: string) {
   return text
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .split("\n")
-    .map((line) => `<p>${line || "&nbsp;"}</p>`)
-    .join("");
+    .replaceAll('"', "&quot;");
 }
