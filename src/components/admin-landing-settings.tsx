@@ -69,6 +69,37 @@ export function AdminLandingSettings({ initialSettings, canEdit }: { initialSett
     }
   }
 
+  async function uploadLogo(files: FileList | null) {
+    const file = files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      setMessage("Use uma logo de até 2 MB.");
+      return;
+    }
+
+    setLoading(true);
+    setMessage("");
+
+    try {
+      const blob = await upload(`logos/${Date.now()}-${sanitizeFileName(file.name)}`, file, {
+        access: "public",
+        handleUploadUrl: "/api/admin/blob/upload",
+        contentType: file.type,
+      });
+
+      setSettings({ ...settings, logoUrl: blob.url });
+      setMessage("Logo enviada. Salve a landing para publicar.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Não foi possível enviar a logo.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="mt-6 grid gap-6 lg:grid-cols-[420px_1fr]">
       <section className="rounded-lg border border-black/10 bg-white p-5">
@@ -83,6 +114,63 @@ export function AdminLandingSettings({ initialSettings, canEdit }: { initialSett
               onChange={(event) => setSettings({ ...settings, videoUrl: event.target.value })}
             />
           </label>
+
+          <div className="rounded-lg border border-black/10 bg-neutral-50 p-4">
+            <h3 className="text-lg font-semibold">Cabeçalho</h3>
+            <div className="mt-4 space-y-4">
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-neutral-700">Cor do menu/cabeçalho</span>
+                <input
+                  className="h-12 w-full rounded-lg border border-black/15 px-2"
+                  disabled={!canEdit}
+                  type="color"
+                  value={settings.headerColor.startsWith("#") ? settings.headerColor : "#000000"}
+                  onChange={(event) => setSettings({ ...settings, headerColor: event.target.value })}
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-neutral-700">Logo por URL</span>
+                <input
+                  className="w-full rounded-lg border border-black/15 px-3 py-3 outline-none focus:border-[#98743e]"
+                  disabled={!canEdit}
+                  value={settings.logoUrl}
+                  onChange={(event) => setSettings({ ...settings, logoUrl: event.target.value })}
+                />
+              </label>
+
+              <label className="block rounded-lg border border-dashed border-black/20 p-4 text-sm text-neutral-700">
+                <span className="block font-medium">Submeter logomarca</span>
+                <span className="mt-1 block text-xs text-neutral-500">PNG, JPG, WEBP ou SVG até 2 MB.</span>
+                <input className="mt-3 block w-full text-sm" disabled={!canEdit} type="file" accept="image/*,.svg" onChange={(event) => uploadLogo(event.target.files)} />
+              </label>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block">
+                  <span className="mb-2 block text-sm font-medium text-neutral-700">Texto alternativo da logo</span>
+                  <input
+                    className="w-full rounded-lg border border-black/15 px-3 py-3 outline-none focus:border-[#98743e]"
+                    disabled={!canEdit}
+                    value={settings.logoAlt}
+                    onChange={(event) => setSettings({ ...settings, logoAlt: event.target.value })}
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-2 block text-sm font-medium text-neutral-700">Altura da logo: {settings.logoHeight}px</span>
+                  <input
+                    className="w-full accent-[#98743e]"
+                    disabled={!canEdit}
+                    max={120}
+                    min={24}
+                    step={2}
+                    type="range"
+                    value={settings.logoHeight}
+                    onChange={(event) => setSettings({ ...settings, logoHeight: Number(event.target.value) })}
+                  />
+                </label>
+              </div>
+            </div>
+          </div>
 
           <label className="block rounded-lg border border-dashed border-black/20 p-4 text-sm text-neutral-700">
             <span className="block font-medium">Submeter vídeo</span>
@@ -351,6 +439,15 @@ export function AdminLandingSettings({ initialSettings, canEdit }: { initialSett
       </section>
 
       <section className="relative min-h-[560px] overflow-hidden rounded-lg bg-neutral-950 text-white">
+        <header className="absolute left-0 right-0 top-0 z-30 px-8 py-5" style={{ backgroundColor: settings.headerColor }}>
+          <div className="flex justify-end">
+            {settings.logoUrl ? (
+              <img alt={settings.logoAlt} src={settings.logoUrl} style={{ height: settings.logoHeight, width: "auto" }} />
+            ) : (
+              <span className="text-sm font-semibold uppercase tracking-[0.22em] text-white/70">Logo à direita</span>
+            )}
+          </div>
+        </header>
         {settings.videoUrl ? (
           <video
             key={settings.videoUrl}

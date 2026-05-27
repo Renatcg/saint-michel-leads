@@ -18,6 +18,14 @@ export default async function Home() {
       />
       <div className="absolute inset-0" style={{ backgroundColor: landing.overlayColor, opacity: landing.overlayOpacity }} />
 
+      <header className="absolute left-0 right-0 top-0 z-20 px-6 py-5 md:px-10 lg:px-12" style={{ backgroundColor: landing.headerColor }}>
+        <div className="mx-auto flex max-w-7xl justify-end">
+          {landing.logoUrl ? (
+            <img alt={landing.logoAlt} src={landing.logoUrl} style={{ height: landing.logoHeight, width: "auto" }} />
+          ) : null}
+        </div>
+      </header>
+
       <section className="relative z-10 mx-auto grid min-h-screen w-full max-w-7xl items-center gap-10 px-6 py-10 md:grid-cols-[1.05fr_.95fr] md:px-10 lg:px-12">
         <div className="max-w-2xl text-left">
           <p className="mb-5 text-sm font-semibold uppercase tracking-[0.26em] text-[#d8bd85]">

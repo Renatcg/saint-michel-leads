@@ -9,6 +9,10 @@ export type LandingSettings = {
   playbackRate: number;
   overlayColor: string;
   overlayOpacity: number;
+  headerColor: string;
+  logoUrl: string;
+  logoAlt: string;
+  logoHeight: number;
   eyebrow: string;
   headline: string;
   subheadline: string;
@@ -37,6 +41,10 @@ export const defaultLandingSettings: LandingSettings = {
   playbackRate: 1,
   overlayColor: "#000000",
   overlayOpacity: 0.62,
+  headerColor: "rgba(0,0,0,0)",
+  logoUrl: "",
+  logoAlt: "Saint Michel Construtora",
+  logoHeight: 56,
   eyebrow: "Saint Michel Construtora",
   headline: "Seu próximo endereço com padrão de alto valor.",
   subheadline:
@@ -121,6 +129,10 @@ export function normalizeLandingSettings(settings: Partial<LandingSettings>): La
     playbackRate: clamp(Number(settings.playbackRate ?? defaultLandingSettings.playbackRate), 0.25, 2),
     overlayColor: settings.overlayColor || defaultLandingSettings.overlayColor,
     overlayOpacity: clamp(Number(settings.overlayOpacity ?? defaultLandingSettings.overlayOpacity), 0, 1),
+    headerColor: settings.headerColor || defaultLandingSettings.headerColor,
+    logoUrl: settings.logoUrl || "",
+    logoAlt: settings.logoAlt || defaultLandingSettings.logoAlt,
+    logoHeight: clamp(Number(settings.logoHeight ?? defaultLandingSettings.logoHeight), 24, 120),
     eyebrow: settings.eyebrow || defaultLandingSettings.eyebrow,
     headline: settings.headline || defaultLandingSettings.headline,
     subheadline: settings.subheadline || defaultLandingSettings.subheadline,

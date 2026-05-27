@@ -16,12 +16,12 @@ export async function POST(request: Request) {
       body,
       request,
       onBeforeGenerateToken: async (pathname) => {
-        if (!pathname.startsWith("landing/")) {
+        if (!pathname.startsWith("landing/") && !pathname.startsWith("logos/")) {
           throw new Error("Caminho de upload inválido.");
         }
 
         return {
-          allowedContentTypes: ["video/mp4", "video/webm", "video/quicktime"],
+          allowedContentTypes: ["video/mp4", "video/webm", "video/quicktime", "image/png", "image/jpeg", "image/webp", "image/svg+xml"],
           maximumSizeInBytes: 20 * 1024 * 1024,
           tokenPayload: JSON.stringify({ area: "landing" }),
         };
