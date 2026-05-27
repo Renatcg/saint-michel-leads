@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { MessageTrigger } from "@prisma/client";
+import { expandTemplateChannels, processImmediateEmailSchedules } from "@/lib/message-delivery";
 import { getPrisma } from "@/lib/prisma";
 import { leadSchema, normalizePhone } from "@/lib/validators";
 
@@ -30,6 +31,8 @@ export async function POST(request: Request) {
     },
   });
 
+  await processImmediateEmailSchedules(lead.id);
+
   return NextResponse.json({ id: lead.id }, { status: 201 });
 }
 
@@ -46,14 +49,14 @@ async function buildSchedules() {
 
   const now = new Date();
 
-  return templates.map((template) => {
+  return templates.flatMap((template) => {
     const scheduledFor = new Date(now);
     scheduledFor.setDate(scheduledFor.getDate() + template.delayDays);
 
-    return {
+    return expandTemplateChannels(template.channel).map((channel) => ({
       templateId: template.id,
-      channel: template.channel,
+      channel,
       scheduledFor,
-    };
+    }));
   });
 }
