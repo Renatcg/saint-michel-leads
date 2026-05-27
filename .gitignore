@@ -9,3 +9,4 @@ dist
 .DS_Store
 coverage
 prisma/dev.db
+tsconfig.tsbuildinfo

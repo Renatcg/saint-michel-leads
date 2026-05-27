@@ -1,12 +1,54 @@
+import { Prisma } from "@prisma/client";
+import { AdminLeadsTable } from "@/components/admin-leads-table";
+import { canEditLeads, getCurrentUser } from "@/lib/auth";
+import { leadStatusLabels, leadStatusValues, type LeadStatusValue } from "@/lib/leads";
 import { getPrisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-export default async function LeadsPage() {
+type LeadsPageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+function getParam(params: Record<string, string | string[] | undefined>, key: string) {
+  const value = params[key];
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export default async function LeadsPage({ searchParams }: LeadsPageProps) {
+  const params = searchParams ? await searchParams : {};
+  const query = getParam(params, "q")?.trim() ?? "";
+  const status = getParam(params, "status")?.trim() ?? "";
   const prisma = getPrisma();
+  const currentUser = await getCurrentUser();
+  const canEdit = currentUser ? canEditLeads(currentUser.role) : false;
+
+  const where: Prisma.LeadWhereInput = {};
+
+  if (query) {
+    where.OR = [
+      { name: { contains: query, mode: "insensitive" } },
+      { email: { contains: query, mode: "insensitive" } },
+      { phone: { contains: query, mode: "insensitive" } },
+    ];
+  }
+
+  if (leadStatusValues.includes(status as LeadStatusValue)) {
+    where.status = status as LeadStatusValue;
+  }
+
   const leads = await prisma.lead.findMany({
+    where,
     orderBy: { createdAt: "desc" },
     take: 100,
+    include: {
+      _count: {
+        select: {
+          logs: true,
+          schedules: true,
+        },
+      },
+    },
   });
 
   return (
@@ -14,41 +56,60 @@ export default async function LeadsPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-semibold">Leads</h1>
-          <p className="mt-2 text-neutral-600">Últimos cadastros recebidos pela landing page.</p>
+          <p className="mt-2 text-neutral-600">Busque, filtre e atualize os cadastros recebidos pela landing page.</p>
         </div>
       </div>
 
-      <div className="mt-6 overflow-hidden rounded-lg border border-black/10 bg-white">
-        <table className="w-full min-w-[760px] border-collapse text-left text-sm">
-          <thead className="bg-neutral-100 text-neutral-600">
-            <tr>
-              <th className="px-4 py-3 font-medium">Nome</th>
-              <th className="px-4 py-3 font-medium">E-mail</th>
-              <th className="px-4 py-3 font-medium">WhatsApp</th>
-              <th className="px-4 py-3 font-medium">Status</th>
-              <th className="px-4 py-3 font-medium">Cadastro</th>
-            </tr>
-          </thead>
-          <tbody>
-            {leads.map((lead) => (
-              <tr className="border-t border-black/10" key={lead.id}>
-                <td className="px-4 py-3 font-medium">{lead.name}</td>
-                <td className="px-4 py-3">{lead.email}</td>
-                <td className="px-4 py-3">{lead.phone}</td>
-                <td className="px-4 py-3">{lead.status}</td>
-                <td className="px-4 py-3">{lead.createdAt.toLocaleDateString("pt-BR")}</td>
-              </tr>
+      <form className="mt-6 grid gap-3 rounded-lg border border-black/10 bg-white p-4 md:grid-cols-[1fr_220px_auto]" action="/admin/leads">
+        <label>
+          <span className="mb-2 block text-sm font-medium text-neutral-700">Buscar</span>
+          <input
+            className="w-full rounded-lg border border-black/15 px-3 py-3 outline-none focus:border-[#98743e]"
+            name="q"
+            defaultValue={query}
+            placeholder="Nome, e-mail ou telefone"
+          />
+        </label>
+        <label>
+          <span className="mb-2 block text-sm font-medium text-neutral-700">Status</span>
+          <select
+            className="w-full rounded-lg border border-black/15 px-3 py-3 outline-none focus:border-[#98743e]"
+            name="status"
+            defaultValue={status}
+          >
+            <option value="">Todos</option>
+            {leadStatusValues.map((value) => (
+              <option key={value} value={value}>
+                {leadStatusLabels[value]}
+              </option>
             ))}
-            {leads.length === 0 ? (
-              <tr>
-                <td className="px-4 py-8 text-center text-neutral-500" colSpan={5}>
-                  Nenhum lead cadastrado ainda.
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
-      </div>
+          </select>
+        </label>
+        <div className="flex items-end gap-2">
+          <button className="rounded-lg bg-[#98743e] px-5 py-3 font-semibold text-white" type="submit">
+            Filtrar
+          </button>
+          <a className="rounded-lg border border-black/15 px-5 py-3 font-semibold text-neutral-700" href="/admin/leads">
+            Limpar
+          </a>
+        </div>
+      </form>
+
+      <AdminLeadsTable
+        canEdit={canEdit}
+        initialLeads={leads.map((lead) => ({
+          id: lead.id,
+          name: lead.name,
+          email: lead.email,
+          phone: lead.phone,
+          status: lead.status,
+          source: lead.source,
+          acceptedDataUsage: lead.acceptedDataUsage,
+          createdAt: lead.createdAt.toISOString(),
+          logsCount: lead._count.logs,
+          schedulesCount: lead._count.schedules,
+        }))}
+      />
     </section>
   );
 }
