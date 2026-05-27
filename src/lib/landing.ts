@@ -12,6 +12,19 @@ export type LandingSettings = {
   eyebrow: string;
   headline: string;
   subheadline: string;
+  formTitle: string;
+  formDescription: string;
+  nameLabel: string;
+  namePlaceholder: string;
+  emailLabel: string;
+  emailPlaceholder: string;
+  phoneLabel: string;
+  phonePlaceholder: string;
+  consentText: string;
+  submitButtonText: string;
+  loadingButtonText: string;
+  successMessage: string;
+  errorMessage: string;
 };
 
 export const LANDING_SETTINGS_KEY = "__landing_settings";
@@ -28,6 +41,20 @@ export const defaultLandingSettings: LandingSettings = {
   headline: "Seu próximo endereço com padrão de alto valor.",
   subheadline:
     "Cadastre seu interesse para receber novidades, condições especiais e atendimento consultivo sobre os próximos empreendimentos.",
+  formTitle: "Receba atendimento",
+  formDescription: "Deixe seus dados para falar com a equipe da Saint Michel.",
+  nameLabel: "Nome",
+  namePlaceholder: "Seu nome completo",
+  emailLabel: "Seu melhor e-mail",
+  emailPlaceholder: "voce@email.com",
+  phoneLabel: "Telefone (WhatsApp)",
+  phonePlaceholder: "(00) 00000-0000",
+  consentText:
+    "Aceito o uso dos meus dados pela Saint Michel Construtora e parceiros para contato comercial e relacionamento.",
+  submitButtonText: "Quero saber mais",
+  loadingButtonText: "Enviando...",
+  successMessage: "Cadastro recebido. Em breve nossa equipe entra em contato.",
+  errorMessage: "Não foi possível enviar agora. Tente novamente.",
 };
 
 export async function getLandingSettings() {
@@ -97,6 +124,19 @@ export function normalizeLandingSettings(settings: Partial<LandingSettings>): La
     eyebrow: settings.eyebrow || defaultLandingSettings.eyebrow,
     headline: settings.headline || defaultLandingSettings.headline,
     subheadline: settings.subheadline || defaultLandingSettings.subheadline,
+    formTitle: settings.formTitle || defaultLandingSettings.formTitle,
+    formDescription: settings.formDescription || defaultLandingSettings.formDescription,
+    nameLabel: settings.nameLabel || defaultLandingSettings.nameLabel,
+    namePlaceholder: settings.namePlaceholder || defaultLandingSettings.namePlaceholder,
+    emailLabel: settings.emailLabel || defaultLandingSettings.emailLabel,
+    emailPlaceholder: settings.emailPlaceholder || defaultLandingSettings.emailPlaceholder,
+    phoneLabel: settings.phoneLabel || defaultLandingSettings.phoneLabel,
+    phonePlaceholder: settings.phonePlaceholder || defaultLandingSettings.phonePlaceholder,
+    consentText: settings.consentText || defaultLandingSettings.consentText,
+    submitButtonText: settings.submitButtonText || defaultLandingSettings.submitButtonText,
+    loadingButtonText: settings.loadingButtonText || defaultLandingSettings.loadingButtonText,
+    successMessage: settings.successMessage || defaultLandingSettings.successMessage,
+    errorMessage: settings.errorMessage || defaultLandingSettings.errorMessage,
   };
 }
 

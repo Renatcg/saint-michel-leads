@@ -32,7 +32,7 @@ export default async function Home() {
         </div>
 
         <div className="flex justify-start md:justify-end">
-          <LeadForm />
+          <LeadForm settings={landing} />
         </div>
       </section>
     </main>

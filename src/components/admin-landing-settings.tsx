@@ -211,6 +211,135 @@ export function AdminLandingSettings({ initialSettings, canEdit }: { initialSett
             />
           </label>
 
+          <div className="rounded-lg border border-black/10 bg-neutral-50 p-4">
+            <h3 className="text-lg font-semibold">Textos do formulário</h3>
+            <div className="mt-4 space-y-4">
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-neutral-700">Título do formulário</span>
+                <input
+                  className="w-full rounded-lg border border-black/15 px-3 py-3 outline-none focus:border-[#98743e]"
+                  disabled={!canEdit}
+                  value={settings.formTitle}
+                  onChange={(event) => setSettings({ ...settings, formTitle: event.target.value })}
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-neutral-700">Descrição do formulário</span>
+                <textarea
+                  className="min-h-20 w-full rounded-lg border border-black/15 px-3 py-3 outline-none focus:border-[#98743e]"
+                  disabled={!canEdit}
+                  value={settings.formDescription}
+                  onChange={(event) => setSettings({ ...settings, formDescription: event.target.value })}
+                />
+              </label>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block">
+                  <span className="mb-2 block text-sm font-medium text-neutral-700">Label do nome</span>
+                  <input
+                    className="w-full rounded-lg border border-black/15 px-3 py-3 outline-none focus:border-[#98743e]"
+                    disabled={!canEdit}
+                    value={settings.nameLabel}
+                    onChange={(event) => setSettings({ ...settings, nameLabel: event.target.value })}
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-2 block text-sm font-medium text-neutral-700">Placeholder do nome</span>
+                  <input
+                    className="w-full rounded-lg border border-black/15 px-3 py-3 outline-none focus:border-[#98743e]"
+                    disabled={!canEdit}
+                    value={settings.namePlaceholder}
+                    onChange={(event) => setSettings({ ...settings, namePlaceholder: event.target.value })}
+                  />
+                </label>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block">
+                  <span className="mb-2 block text-sm font-medium text-neutral-700">Label do e-mail</span>
+                  <input
+                    className="w-full rounded-lg border border-black/15 px-3 py-3 outline-none focus:border-[#98743e]"
+                    disabled={!canEdit}
+                    value={settings.emailLabel}
+                    onChange={(event) => setSettings({ ...settings, emailLabel: event.target.value })}
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-2 block text-sm font-medium text-neutral-700">Placeholder do e-mail</span>
+                  <input
+                    className="w-full rounded-lg border border-black/15 px-3 py-3 outline-none focus:border-[#98743e]"
+                    disabled={!canEdit}
+                    value={settings.emailPlaceholder}
+                    onChange={(event) => setSettings({ ...settings, emailPlaceholder: event.target.value })}
+                  />
+                </label>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block">
+                  <span className="mb-2 block text-sm font-medium text-neutral-700">Label do WhatsApp</span>
+                  <input
+                    className="w-full rounded-lg border border-black/15 px-3 py-3 outline-none focus:border-[#98743e]"
+                    disabled={!canEdit}
+                    value={settings.phoneLabel}
+                    onChange={(event) => setSettings({ ...settings, phoneLabel: event.target.value })}
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-2 block text-sm font-medium text-neutral-700">Placeholder do WhatsApp</span>
+                  <input
+                    className="w-full rounded-lg border border-black/15 px-3 py-3 outline-none focus:border-[#98743e]"
+                    disabled={!canEdit}
+                    value={settings.phonePlaceholder}
+                    onChange={(event) => setSettings({ ...settings, phonePlaceholder: event.target.value })}
+                  />
+                </label>
+              </div>
+
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-neutral-700">Texto do aceite</span>
+                <textarea
+                  className="min-h-24 w-full rounded-lg border border-black/15 px-3 py-3 outline-none focus:border-[#98743e]"
+                  disabled={!canEdit}
+                  value={settings.consentText}
+                  onChange={(event) => setSettings({ ...settings, consentText: event.target.value })}
+                />
+              </label>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block">
+                  <span className="mb-2 block text-sm font-medium text-neutral-700">Texto do botão</span>
+                  <input
+                    className="w-full rounded-lg border border-black/15 px-3 py-3 outline-none focus:border-[#98743e]"
+                    disabled={!canEdit}
+                    value={settings.submitButtonText}
+                    onChange={(event) => setSettings({ ...settings, submitButtonText: event.target.value })}
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-2 block text-sm font-medium text-neutral-700">Texto enquanto envia</span>
+                  <input
+                    className="w-full rounded-lg border border-black/15 px-3 py-3 outline-none focus:border-[#98743e]"
+                    disabled={!canEdit}
+                    value={settings.loadingButtonText}
+                    onChange={(event) => setSettings({ ...settings, loadingButtonText: event.target.value })}
+                  />
+                </label>
+              </div>
+
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-neutral-700">Mensagem de sucesso</span>
+                <input
+                  className="w-full rounded-lg border border-black/15 px-3 py-3 outline-none focus:border-[#98743e]"
+                  disabled={!canEdit}
+                  value={settings.successMessage}
+                  onChange={(event) => setSettings({ ...settings, successMessage: event.target.value })}
+                />
+              </label>
+            </div>
+          </div>
+
           {canEdit ? (
             <button className="rounded-lg bg-[#98743e] px-5 py-3 font-semibold text-white disabled:opacity-60" type="button" disabled={loading} onClick={save}>
               Salvar landing
@@ -250,6 +379,28 @@ export function AdminLandingSettings({ initialSettings, canEdit }: { initialSett
             <p className="mb-5 text-sm font-semibold uppercase tracking-[0.26em] text-[#d8bd85]">{settings.eyebrow}</p>
             <h2 className="text-4xl font-semibold leading-[1.02] sm:text-5xl">{settings.headline}</h2>
             <p className="mt-6 text-lg leading-8 text-white/82">{settings.subheadline}</p>
+            <div className="mt-8 max-w-md rounded-lg border border-white/35 bg-white/70 p-5 text-neutral-950 backdrop-blur">
+              <h3 className="text-2xl font-semibold">{settings.formTitle}</h3>
+              <p className="mt-2 text-sm text-neutral-700">{settings.formDescription}</p>
+              <div className="mt-4 space-y-3 text-sm">
+                <div>
+                  <span className="mb-1 block font-medium">{settings.nameLabel}</span>
+                  <div className="rounded-lg bg-white px-3 py-3 text-neutral-400">{settings.namePlaceholder}</div>
+                </div>
+                <div>
+                  <span className="mb-1 block font-medium">{settings.emailLabel}</span>
+                  <div className="rounded-lg bg-white px-3 py-3 text-neutral-400">{settings.emailPlaceholder}</div>
+                </div>
+                <div>
+                  <span className="mb-1 block font-medium">{settings.phoneLabel}</span>
+                  <div className="rounded-lg bg-white px-3 py-3 text-neutral-400">{settings.phonePlaceholder}</div>
+                </div>
+                <p className="text-xs leading-5 text-neutral-600">{settings.consentText}</p>
+                <div className="rounded-lg bg-[#98743e] px-4 py-3 text-center text-xs font-bold uppercase tracking-[0.16em] text-white">
+                  {settings.submitButtonText}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         <div className="absolute bottom-4 left-4 right-4 z-20 rounded-lg bg-black/60 px-4 py-3 text-sm text-white">

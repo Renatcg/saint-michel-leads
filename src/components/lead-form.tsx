@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import type { LandingSettings } from "@/lib/landing";
 
 type SubmitState = "idle" | "loading" | "success" | "error";
 
-export function LeadForm() {
+export function LeadForm({ settings }: { settings: LandingSettings }) {
   const [state, setState] = useState<SubmitState>("idle");
   const [message, setMessage] = useState("");
 
@@ -32,38 +33,38 @@ export function LeadForm() {
     if (!response.ok) {
       const data = await response.json().catch(() => null);
       setState("error");
-      setMessage(data?.error ?? "Não foi possível enviar agora. Tente novamente.");
+      setMessage(data?.error ?? settings.errorMessage);
       return;
     }
 
     form.reset();
     setState("success");
-    setMessage("Cadastro recebido. Em breve nossa equipe entra em contato.");
+    setMessage(settings.successMessage);
   }
 
   return (
     <form onSubmit={handleSubmit} className="glass w-full max-w-md rounded-lg p-6 text-left text-neutral-950 sm:p-7">
       <div className="mb-6">
-        <h2 className="text-2xl font-semibold">Receba atendimento</h2>
+        <h2 className="text-2xl font-semibold">{settings.formTitle}</h2>
         <p className="mt-2 text-sm leading-6 text-neutral-700">
-          Deixe seus dados para falar com a equipe da Saint Michel.
+          {settings.formDescription}
         </p>
       </div>
 
       <div className="space-y-4">
         <label className="block">
-          <span className="mb-2 block text-sm font-medium">Nome</span>
-          <input className="field" name="name" type="text" autoComplete="name" required />
+          <span className="mb-2 block text-sm font-medium">{settings.nameLabel}</span>
+          <input className="field" name="name" type="text" autoComplete="name" placeholder={settings.namePlaceholder} required />
         </label>
 
         <label className="block">
-          <span className="mb-2 block text-sm font-medium">Seu melhor e-mail</span>
-          <input className="field" name="email" type="email" autoComplete="email" required />
+          <span className="mb-2 block text-sm font-medium">{settings.emailLabel}</span>
+          <input className="field" name="email" type="email" autoComplete="email" placeholder={settings.emailPlaceholder} required />
         </label>
 
         <label className="block">
-          <span className="mb-2 block text-sm font-medium">Telefone (WhatsApp)</span>
-          <input className="field" name="phone" type="tel" autoComplete="tel" required />
+          <span className="mb-2 block text-sm font-medium">{settings.phoneLabel}</span>
+          <input className="field" name="phone" type="tel" autoComplete="tel" placeholder={settings.phonePlaceholder} required />
         </label>
 
         <label className="flex items-start gap-3 text-sm leading-5 text-neutral-700">
@@ -74,9 +75,7 @@ export function LeadForm() {
             defaultChecked
             required
           />
-          <span>
-            Aceito o uso dos meus dados pela Saint Michel Construtora e parceiros para contato comercial e relacionamento.
-          </span>
+          <span>{settings.consentText}</span>
         </label>
       </div>
 
@@ -85,7 +84,7 @@ export function LeadForm() {
         type="submit"
         disabled={state === "loading"}
       >
-        {state === "loading" ? "Enviando..." : "Quero saber mais"}
+        {state === "loading" ? settings.loadingButtonText : settings.submitButtonText}
       </button>
 
       {message ? (
