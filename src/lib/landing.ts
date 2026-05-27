@@ -35,6 +35,7 @@ export type LandingSettings = {
   loadingButtonText: string;
   successMessage: string;
   errorMessage: string;
+  salesPhone: string;
 };
 
 export const LANDING_SETTINGS_KEY = "__landing_settings";
@@ -75,6 +76,7 @@ export const defaultLandingSettings: LandingSettings = {
   loadingButtonText: "Enviando...",
   successMessage: "Cadastro recebido. Em breve nossa equipe entra em contato.",
   errorMessage: "Não foi possível enviar agora. Tente novamente.",
+  salesPhone: "",
 };
 
 export async function getLandingSettings() {
@@ -167,7 +169,19 @@ export function normalizeLandingSettings(settings: Partial<LandingSettings>): La
     loadingButtonText: settings.loadingButtonText || defaultLandingSettings.loadingButtonText,
     successMessage: settings.successMessage || defaultLandingSettings.successMessage,
     errorMessage: settings.errorMessage || defaultLandingSettings.errorMessage,
+    salesPhone: settings.salesPhone || defaultLandingSettings.salesPhone,
   };
+}
+
+export function buildSalesContactUrl(settings: Pick<LandingSettings, "salesPhone">) {
+  const digits = settings.salesPhone.replace(/\D/g, "");
+
+  if (!digits) {
+    return "";
+  }
+
+  const phoneWithCountryCode = digits.startsWith("55") ? digits : `55${digits}`;
+  return `https://wa.me/${phoneWithCountryCode}`;
 }
 
 function clamp(value: number, min: number, max: number) {

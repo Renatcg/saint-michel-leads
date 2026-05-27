@@ -1,5 +1,6 @@
 import { DeliveryStatus, MessageChannel, MessageTrigger, type Lead, type MessageTemplate } from "@prisma/client";
 import { Resend } from "resend";
+import { buildSalesContactUrl, getLandingSettings } from "@/lib/landing";
 import { getPrisma } from "@/lib/prisma";
 import { markdownToHtml } from "@/lib/rich-content";
 
@@ -77,7 +78,7 @@ async function sendEmailSchedule(schedule: TemplateWithLead) {
       throw new Error("Mensagem sem assunto de e-mail.");
     }
 
-    const salesContactUrl = getSalesContactUrl(settings);
+    const salesContactUrl = await getSalesContactUrl(settings);
     const subject = renderMessageTemplate(schedule.template.subject, schedule.lead, { salesContactUrl });
     const text = renderMessageTemplate(schedule.template.body, schedule.lead, { salesContactUrl });
     const resend = new Resend(settings.apiKey);
@@ -163,9 +164,14 @@ function formatFrom(settings: ResendSettings) {
   return `${settings.fromName} <${settings.fromEmail}>`;
 }
 
-function getSalesContactUrl(settings: ResendSettings) {
+async function getSalesContactUrl(settings: ResendSettings) {
+  if (process.env.SALES_TEAM_CONTACT_URL) {
+    return process.env.SALES_TEAM_CONTACT_URL;
+  }
+
+  const landingSettings = await getLandingSettings();
   return (
-    process.env.SALES_TEAM_CONTACT_URL ||
+    buildSalesContactUrl(landingSettings) ||
     `mailto:${settings.fromEmail}?subject=${encodeURIComponent("Quero falar com a equipe de corretores")}`
   );
 }

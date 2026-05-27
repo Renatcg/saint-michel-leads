@@ -536,6 +536,29 @@ export function AdminLandingSettings({ initialSettings, canEdit }: { initialSett
             </div>
           </div>
 
+          <div className="rounded-lg border border-black/10 bg-neutral-50 p-4">
+            <h3 className="text-lg font-semibold">Contato dos corretores</h3>
+            <div className="mt-4 space-y-3">
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-neutral-700">Telefone para o botão dos e-mails</span>
+                <input
+                  className="w-full rounded-lg border border-black/15 px-3 py-3 outline-none focus:border-[#98743e]"
+                  disabled={!canEdit}
+                  inputMode="tel"
+                  placeholder="(00) 00000-0000"
+                  value={settings.salesPhone}
+                  onChange={(event) => setSettings({ ...settings, salesPhone: event.target.value })}
+                />
+              </label>
+              <p className="text-xs leading-5 text-neutral-500">
+                Esse telefone alimenta a variável {"{{link_corretores}}"} nos e-mails e abre uma conversa no WhatsApp.
+              </p>
+              <p className="break-all rounded-lg bg-white px-3 py-2 text-xs text-neutral-600">
+                Link gerado: {buildSalesContactPreview(settings.salesPhone) || "cadastre um telefone para gerar o link"}
+              </p>
+            </div>
+          </div>
+
           {canEdit ? (
             <button className="rounded-lg bg-[#98743e] px-5 py-3 font-semibold text-white disabled:opacity-60" type="button" disabled={loading} onClick={save}>
               Salvar landing
@@ -636,4 +659,14 @@ function sanitizeFileName(fileName: string) {
     .replace(/[^a-zA-Z0-9._-]+/g, "-")
     .replace(/-+/g, "-")
     .toLowerCase();
+}
+
+function buildSalesContactPreview(phone: string) {
+  const digits = phone.replace(/\D/g, "");
+
+  if (!digits) {
+    return "";
+  }
+
+  return `https://wa.me/${digits.startsWith("55") ? digits : `55${digits}`}`;
 }
