@@ -76,20 +76,6 @@ button {
   background: #f6f4ef;
 }
 
-.mobile-headline-limit {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-}
-
-@media (min-width: 640px) {
-  .mobile-headline-limit {
-    display: block;
-    overflow: visible;
-  }
-}
-
 .prose-preview p {
   margin: 0 0 12px;
 }

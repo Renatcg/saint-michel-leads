@@ -49,7 +49,7 @@ export default async function Home() {
               {landing.eyebrow}
             </p>
           )}
-          <h1 className="mobile-headline-limit max-w-[11.5ch] text-[34px] font-semibold leading-[1.02] tracking-normal sm:max-w-xl sm:text-4xl md:text-5xl lg:text-7xl">
+          <h1 className="max-w-full text-[36px] font-semibold leading-[1.02] tracking-normal sm:max-w-xl sm:text-4xl md:text-5xl lg:text-7xl">
             {landing.headline}
           </h1>
           <p className="mt-3 max-w-md text-left text-[15px] leading-6 text-white/82 sm:text-base md:mt-6 md:max-w-xl md:text-xl md:leading-8">
