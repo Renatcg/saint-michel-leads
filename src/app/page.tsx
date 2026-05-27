@@ -1,4 +1,5 @@
 import { LeadForm } from "@/components/lead-form";
+import { LandingBackgroundVideo } from "@/components/landing-background-video";
 import { getLandingSettings } from "@/lib/landing";
 
 export const dynamic = "force-dynamic";
@@ -8,16 +9,13 @@ export default async function Home() {
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-neutral-950 text-white">
-      <video
-        className="absolute inset-0 h-full w-full object-cover"
-        autoPlay
-        loop
-        muted
-        playsInline
-        poster={landing.posterUrl}
-      >
-        <source src={landing.videoUrl} type="video/mp4" />
-      </video>
+      <LandingBackgroundVideo
+        fit={landing.videoFit}
+        playbackRate={landing.playbackRate}
+        position={landing.videoPosition}
+        posterUrl={landing.posterUrl}
+        videoUrl={landing.videoUrl}
+      />
       <div className="absolute inset-0" style={{ backgroundColor: landing.overlayColor, opacity: landing.overlayOpacity }} />
 
       <section className="relative z-10 mx-auto grid min-h-screen w-full max-w-7xl items-center gap-10 px-6 py-10 md:grid-cols-[1.05fr_.95fr] md:px-10 lg:px-12">

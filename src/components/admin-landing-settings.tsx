@@ -69,13 +69,22 @@ export function AdminLandingSettings({ initialSettings, canEdit }: { initialSett
           </label>
 
           <label className="block">
-            <span className="mb-2 block text-sm font-medium text-neutral-700">Poster do vídeo</span>
+            <span className="mb-2 block text-sm font-medium text-neutral-700">Poster do vídeo (opcional)</span>
             <input
               className="w-full rounded-lg border border-black/15 px-3 py-3 outline-none focus:border-[#98743e]"
               disabled={!canEdit}
-              value={settings.posterUrl}
+              value={settings.posterUrl ?? ""}
               onChange={(event) => setSettings({ ...settings, posterUrl: event.target.value })}
             />
+            {canEdit ? (
+              <button
+                className="mt-2 rounded-md border border-black/15 px-3 py-2 text-xs font-semibold"
+                type="button"
+                onClick={() => setSettings({ ...settings, posterUrl: "" })}
+              >
+                Remover poster
+              </button>
+            ) : null}
           </label>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -103,6 +112,51 @@ export function AdminLandingSettings({ initialSettings, canEdit }: { initialSett
               />
             </label>
           </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block">
+              <span className="mb-2 block text-sm font-medium text-neutral-700">Encaixe do vídeo</span>
+              <select
+                className="w-full rounded-lg border border-black/15 px-3 py-3 outline-none focus:border-[#98743e]"
+                disabled={!canEdit}
+                value={settings.videoFit}
+                onChange={(event) => setSettings({ ...settings, videoFit: event.target.value as "cover" | "contain" })}
+              >
+                <option value="cover">Preencher área</option>
+                <option value="contain">Mostrar inteiro</option>
+              </select>
+            </label>
+
+            <label className="block">
+              <span className="mb-2 block text-sm font-medium text-neutral-700">Posição do vídeo</span>
+              <select
+                className="w-full rounded-lg border border-black/15 px-3 py-3 outline-none focus:border-[#98743e]"
+                disabled={!canEdit}
+                value={settings.videoPosition}
+                onChange={(event) => setSettings({ ...settings, videoPosition: event.target.value })}
+              >
+                <option value="center center">Centro</option>
+                <option value="center top">Topo</option>
+                <option value="center bottom">Base</option>
+                <option value="left center">Esquerda</option>
+                <option value="right center">Direita</option>
+              </select>
+            </label>
+          </div>
+
+          <label className="block">
+            <span className="mb-2 block text-sm font-medium text-neutral-700">Velocidade: {settings.playbackRate.toFixed(2)}x</span>
+            <input
+              className="w-full accent-[#98743e]"
+              disabled={!canEdit}
+              max={2}
+              min={0.25}
+              step={0.05}
+              type="range"
+              value={settings.playbackRate}
+              onChange={(event) => setSettings({ ...settings, playbackRate: Number(event.target.value) })}
+            />
+          </label>
 
           <label className="block">
             <span className="mb-2 block text-sm font-medium text-neutral-700">Eyebrow</span>
@@ -145,7 +199,18 @@ export function AdminLandingSettings({ initialSettings, canEdit }: { initialSett
       </section>
 
       <section className="relative min-h-[560px] overflow-hidden rounded-lg bg-neutral-950 text-white">
-        <video className="absolute inset-0 h-full w-full object-cover" autoPlay loop muted playsInline poster={settings.posterUrl}>
+        <video
+          key={settings.videoUrl}
+          className="absolute inset-0 h-full w-full"
+          style={{ objectFit: settings.videoFit, objectPosition: settings.videoPosition }}
+          autoPlay
+          controls
+          loop
+          muted
+          playsInline
+          preload="auto"
+          poster={settings.posterUrl || undefined}
+        >
           <source src={settings.videoUrl} type="video/mp4" />
         </video>
         <div className="absolute inset-0" style={{ backgroundColor: settings.overlayColor, opacity: settings.overlayOpacity }} />

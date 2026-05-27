@@ -3,7 +3,10 @@ import { getPrisma } from "@/lib/prisma";
 
 export type LandingSettings = {
   videoUrl: string;
-  posterUrl: string;
+  posterUrl?: string;
+  videoFit: "cover" | "contain";
+  videoPosition: string;
+  playbackRate: number;
   overlayColor: string;
   overlayOpacity: number;
   eyebrow: string;
@@ -15,7 +18,10 @@ export const LANDING_SETTINGS_KEY = "__landing_settings";
 
 export const defaultLandingSettings: LandingSettings = {
   videoUrl: "https://videos.pexels.com/video-files/3773486/3773486-uhd_2560_1440_30fps.mp4",
-  posterUrl: "https://images.unsplash.com/photo-1600585154526-990dced4db0d?q=80&w=2200&auto=format&fit=crop",
+  posterUrl: "",
+  videoFit: "cover",
+  videoPosition: "center center",
+  playbackRate: 1,
   overlayColor: "#000000",
   overlayOpacity: 0.62,
   eyebrow: "Saint Michel Construtora",
@@ -77,7 +83,10 @@ export async function saveLandingSettings(settings: LandingSettings) {
 export function normalizeLandingSettings(settings: Partial<LandingSettings>): LandingSettings {
   return {
     videoUrl: settings.videoUrl || defaultLandingSettings.videoUrl,
-    posterUrl: settings.posterUrl || defaultLandingSettings.posterUrl,
+    posterUrl: settings.posterUrl || "",
+    videoFit: settings.videoFit === "contain" ? "contain" : "cover",
+    videoPosition: settings.videoPosition || defaultLandingSettings.videoPosition,
+    playbackRate: clamp(Number(settings.playbackRate ?? defaultLandingSettings.playbackRate), 0.25, 2),
     overlayColor: settings.overlayColor || defaultLandingSettings.overlayColor,
     overlayOpacity: clamp(Number(settings.overlayOpacity ?? defaultLandingSettings.overlayOpacity), 0, 1),
     eyebrow: settings.eyebrow || defaultLandingSettings.eyebrow,
