@@ -1,11 +1,13 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import type { LandingSettings } from "@/lib/landing";
 
 type SubmitState = "idle" | "loading" | "success" | "error";
 
 export function LeadForm({ settings }: { settings: LandingSettings }) {
+  const router = useRouter();
   const [state, setState] = useState<SubmitState>("idle");
   const [message, setMessage] = useState("");
 
@@ -39,7 +41,7 @@ export function LeadForm({ settings }: { settings: LandingSettings }) {
 
     form.reset();
     setState("success");
-    setMessage(settings.successMessage);
+    router.push("/sucesso");
   }
 
   return (
