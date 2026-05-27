@@ -70,6 +70,14 @@ export function AdminLandingSettings({ initialSettings, canEdit }: { initialSett
   }
 
   async function uploadLogo(files: FileList | null) {
+    await uploadImage(files, "logoUrl", "Logo enviada. Salve a landing para publicar.");
+  }
+
+  async function uploadHeroLogo(files: FileList | null) {
+    await uploadImage(files, "heroLogoUrl", "Logo acima da headline enviada. Salve a landing para publicar.");
+  }
+
+  async function uploadImage(files: FileList | null, field: "logoUrl" | "heroLogoUrl", successMessage: string) {
     const file = files?.[0];
 
     if (!file) {
@@ -91,8 +99,8 @@ export function AdminLandingSettings({ initialSettings, canEdit }: { initialSett
         contentType: file.type,
       });
 
-      setSettings({ ...settings, logoUrl: blob.url });
-      setMessage("Logo enviada. Salve a landing para publicar.");
+      setSettings({ ...settings, [field]: blob.url });
+      setMessage(successMessage);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Não foi possível enviar a logo.");
     } finally {
@@ -279,6 +287,93 @@ export function AdminLandingSettings({ initialSettings, canEdit }: { initialSett
             />
           </label>
 
+          <div className="rounded-lg border border-black/10 bg-neutral-50 p-4">
+            <h3 className="text-lg font-semibold">Acima da headline</h3>
+            <div className="mt-4 space-y-4">
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-neutral-700">Usar texto ou logo?</span>
+                <select
+                  className="w-full rounded-lg border border-black/15 px-3 py-3 outline-none focus:border-[#98743e]"
+                  disabled={!canEdit}
+                  value={settings.heroTopMode}
+                  onChange={(event) => setSettings({ ...settings, heroTopMode: event.target.value as "text" | "logo" })}
+                >
+                  <option value="text">Texto</option>
+                  <option value="logo">Logo</option>
+                </select>
+              </label>
+
+              {settings.heroTopMode === "text" ? (
+                <label className="block">
+                  <span className="mb-2 block text-sm font-medium text-neutral-700">Texto acima da headline</span>
+                  <input
+                    className="w-full rounded-lg border border-black/15 px-3 py-3 outline-none focus:border-[#98743e]"
+                    disabled={!canEdit}
+                    value={settings.eyebrow}
+                    onChange={(event) => setSettings({ ...settings, eyebrow: event.target.value })}
+                  />
+                </label>
+              ) : (
+                <div className="space-y-4">
+                  <label className="block">
+                    <span className="mb-2 block text-sm font-medium text-neutral-700">Logo acima da headline por URL</span>
+                    <input
+                      className="w-full rounded-lg border border-black/15 px-3 py-3 outline-none focus:border-[#98743e]"
+                      disabled={!canEdit}
+                      value={settings.heroLogoUrl}
+                      onChange={(event) => setSettings({ ...settings, heroLogoUrl: event.target.value })}
+                    />
+                  </label>
+
+                  <label className="block rounded-lg border border-dashed border-black/20 p-4 text-sm text-neutral-700">
+                    <span className="block font-medium">Submeter logo acima da headline</span>
+                    <span className="mt-1 block text-xs text-neutral-500">PNG, JPG, WEBP ou SVG até 2 MB.</span>
+                    <input className="mt-3 block w-full text-sm" disabled={!canEdit} type="file" accept="image/*,.svg" onChange={(event) => uploadHeroLogo(event.target.files)} />
+                  </label>
+
+                  <label className="block">
+                    <span className="mb-2 block text-sm font-medium text-neutral-700">Texto alternativo</span>
+                    <input
+                      className="w-full rounded-lg border border-black/15 px-3 py-3 outline-none focus:border-[#98743e]"
+                      disabled={!canEdit}
+                      value={settings.heroLogoAlt}
+                      onChange={(event) => setSettings({ ...settings, heroLogoAlt: event.target.value })}
+                    />
+                  </label>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-medium text-neutral-700">Opacidade: {Math.round(settings.heroLogoOpacity * 100)}%</span>
+                      <input
+                        className="w-full accent-[#98743e]"
+                        disabled={!canEdit}
+                        max={1}
+                        min={0}
+                        step={0.05}
+                        type="range"
+                        value={settings.heroLogoOpacity}
+                        onChange={(event) => setSettings({ ...settings, heroLogoOpacity: Number(event.target.value) })}
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-medium text-neutral-700">Tamanho: {settings.heroLogoScale.toFixed(2)}x</span>
+                      <input
+                        className="w-full accent-[#98743e]"
+                        disabled={!canEdit}
+                        max={3}
+                        min={0.25}
+                        step={0.05}
+                        type="range"
+                        value={settings.heroLogoScale}
+                        onChange={(event) => setSettings({ ...settings, heroLogoScale: Number(event.target.value) })}
+                      />
+                    </label>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
           <label className="block">
             <span className="mb-2 block text-sm font-medium text-neutral-700">Headline</span>
             <textarea
@@ -406,6 +501,19 @@ export function AdminLandingSettings({ initialSettings, canEdit }: { initialSett
                   />
                 </label>
                 <label className="block">
+                  <span className="mb-2 block text-sm font-medium text-neutral-700">Cor do botão</span>
+                  <input
+                    className="h-12 w-full rounded-lg border border-black/15 px-2"
+                    disabled={!canEdit}
+                    type="color"
+                    value={settings.submitButtonColor}
+                    onChange={(event) => setSettings({ ...settings, submitButtonColor: event.target.value })}
+                  />
+                </label>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block">
                   <span className="mb-2 block text-sm font-medium text-neutral-700">Texto enquanto envia</span>
                   <input
                     className="w-full rounded-lg border border-black/15 px-3 py-3 outline-none focus:border-[#98743e]"
@@ -473,7 +581,20 @@ export function AdminLandingSettings({ initialSettings, canEdit }: { initialSett
         <div className="absolute inset-0" style={{ backgroundColor: settings.overlayColor, opacity: settings.overlayOpacity }} />
         <div className="relative z-10 flex min-h-[560px] items-center p-8">
           <div className="max-w-2xl">
-            <p className="mb-5 text-sm font-semibold uppercase tracking-[0.26em] text-[#d8bd85]">{settings.eyebrow}</p>
+            {settings.heroTopMode === "logo" && settings.heroLogoUrl ? (
+              <img
+                alt={settings.heroLogoAlt}
+                className="mb-6 block h-auto max-w-[220px]"
+                src={settings.heroLogoUrl}
+                style={{
+                  opacity: settings.heroLogoOpacity,
+                  transform: `scale(${settings.heroLogoScale})`,
+                  transformOrigin: "left center",
+                }}
+              />
+            ) : (
+              <p className="mb-5 text-sm font-semibold uppercase tracking-[0.26em] text-[#d8bd85]">{settings.eyebrow}</p>
+            )}
             <h2 className="text-4xl font-semibold leading-[1.02] sm:text-5xl">{settings.headline}</h2>
             <p className="mt-6 text-lg leading-8 text-white/82">{settings.subheadline}</p>
             <div className="mt-8 max-w-md rounded-lg border border-white/35 bg-white/70 p-5 text-neutral-950 backdrop-blur">
@@ -493,7 +614,7 @@ export function AdminLandingSettings({ initialSettings, canEdit }: { initialSett
                   <div className="rounded-lg bg-white px-3 py-3 text-neutral-400">{settings.phonePlaceholder}</div>
                 </div>
                 <p className="text-xs leading-5 text-neutral-600">{settings.consentText}</p>
-                <div className="rounded-lg bg-[#98743e] px-4 py-3 text-center text-xs font-bold uppercase tracking-[0.16em] text-white">
+                <div className="rounded-lg px-4 py-3 text-center text-xs font-bold uppercase tracking-[0.16em] text-white" style={{ backgroundColor: settings.submitButtonColor }}>
                   {settings.submitButtonText}
                 </div>
               </div>

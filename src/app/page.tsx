@@ -28,9 +28,22 @@ export default async function Home() {
 
       <section className="relative z-10 mx-auto grid min-h-screen w-full max-w-7xl items-center gap-10 px-6 py-10 md:grid-cols-[1.05fr_.95fr] md:px-10 lg:px-12">
         <div className="max-w-2xl text-left">
-          <p className="mb-5 text-sm font-semibold uppercase tracking-[0.26em] text-[#d8bd85]">
-            {landing.eyebrow}
-          </p>
+          {landing.heroTopMode === "logo" && landing.heroLogoUrl ? (
+            <img
+              alt={landing.heroLogoAlt}
+              className="mb-6 block h-auto max-w-[260px]"
+              src={landing.heroLogoUrl}
+              style={{
+                opacity: landing.heroLogoOpacity,
+                transform: `scale(${landing.heroLogoScale})`,
+                transformOrigin: "left center",
+              }}
+            />
+          ) : (
+            <p className="mb-5 text-sm font-semibold uppercase tracking-[0.26em] text-[#d8bd85]">
+              {landing.eyebrow}
+            </p>
+          )}
           <h1 className="text-4xl font-semibold leading-[1.02] tracking-[-0.02em] sm:text-5xl lg:text-7xl">
             {landing.headline}
           </h1>

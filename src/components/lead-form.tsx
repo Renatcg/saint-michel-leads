@@ -80,7 +80,8 @@ export function LeadForm({ settings }: { settings: LandingSettings }) {
       </div>
 
       <button
-        className="mt-6 w-full rounded-lg bg-[#98743e] px-5 py-4 text-sm font-bold uppercase tracking-[0.16em] text-white transition hover:bg-[#7d5f31] disabled:opacity-60"
+        className="mt-6 w-full rounded-lg px-5 py-4 text-sm font-bold uppercase tracking-[0.16em] text-white transition brightness-100 hover:brightness-90 disabled:opacity-60"
+        style={{ backgroundColor: settings.submitButtonColor }}
         type="submit"
         disabled={state === "loading"}
       >

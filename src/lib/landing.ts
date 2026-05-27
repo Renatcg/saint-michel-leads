@@ -13,6 +13,11 @@ export type LandingSettings = {
   logoUrl: string;
   logoAlt: string;
   logoHeight: number;
+  heroTopMode: "text" | "logo";
+  heroLogoUrl: string;
+  heroLogoAlt: string;
+  heroLogoOpacity: number;
+  heroLogoScale: number;
   eyebrow: string;
   headline: string;
   subheadline: string;
@@ -26,6 +31,7 @@ export type LandingSettings = {
   phonePlaceholder: string;
   consentText: string;
   submitButtonText: string;
+  submitButtonColor: string;
   loadingButtonText: string;
   successMessage: string;
   errorMessage: string;
@@ -45,6 +51,11 @@ export const defaultLandingSettings: LandingSettings = {
   logoUrl: "",
   logoAlt: "Saint Michel Construtora",
   logoHeight: 56,
+  heroTopMode: "text",
+  heroLogoUrl: "",
+  heroLogoAlt: "Saint Michel Construtora",
+  heroLogoOpacity: 1,
+  heroLogoScale: 1,
   eyebrow: "Saint Michel Construtora",
   headline: "Seu próximo endereço com padrão de alto valor.",
   subheadline:
@@ -60,6 +71,7 @@ export const defaultLandingSettings: LandingSettings = {
   consentText:
     "Aceito o uso dos meus dados pela Saint Michel Construtora e parceiros para contato comercial e relacionamento.",
   submitButtonText: "Quero saber mais",
+  submitButtonColor: "#98743e",
   loadingButtonText: "Enviando...",
   successMessage: "Cadastro recebido. Em breve nossa equipe entra em contato.",
   errorMessage: "Não foi possível enviar agora. Tente novamente.",
@@ -133,6 +145,11 @@ export function normalizeLandingSettings(settings: Partial<LandingSettings>): La
     logoUrl: settings.logoUrl || "",
     logoAlt: settings.logoAlt || defaultLandingSettings.logoAlt,
     logoHeight: clamp(Number(settings.logoHeight ?? defaultLandingSettings.logoHeight), 24, 120),
+    heroTopMode: settings.heroTopMode === "logo" ? "logo" : "text",
+    heroLogoUrl: settings.heroLogoUrl || "",
+    heroLogoAlt: settings.heroLogoAlt || defaultLandingSettings.heroLogoAlt,
+    heroLogoOpacity: clamp(Number(settings.heroLogoOpacity ?? defaultLandingSettings.heroLogoOpacity), 0, 1),
+    heroLogoScale: clamp(Number(settings.heroLogoScale ?? defaultLandingSettings.heroLogoScale), 0.25, 3),
     eyebrow: settings.eyebrow || defaultLandingSettings.eyebrow,
     headline: settings.headline || defaultLandingSettings.headline,
     subheadline: settings.subheadline || defaultLandingSettings.subheadline,
@@ -146,6 +163,7 @@ export function normalizeLandingSettings(settings: Partial<LandingSettings>): La
     phonePlaceholder: settings.phonePlaceholder || defaultLandingSettings.phonePlaceholder,
     consentText: settings.consentText || defaultLandingSettings.consentText,
     submitButtonText: settings.submitButtonText || defaultLandingSettings.submitButtonText,
+    submitButtonColor: settings.submitButtonColor || defaultLandingSettings.submitButtonColor,
     loadingButtonText: settings.loadingButtonText || defaultLandingSettings.loadingButtonText,
     successMessage: settings.successMessage || defaultLandingSettings.successMessage,
     errorMessage: settings.errorMessage || defaultLandingSettings.errorMessage,
