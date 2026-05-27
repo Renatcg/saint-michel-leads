@@ -1,6 +1,7 @@
 import { DeliveryStatus, MessageChannel, MessageTrigger, type Lead, type MessageTemplate } from "@prisma/client";
 import { Resend } from "resend";
 import { getPrisma } from "@/lib/prisma";
+import { markdownToHtml } from "@/lib/rich-content";
 
 type TemplateWithLead = {
   id: string;
@@ -85,7 +86,7 @@ async function sendEmailSchedule(schedule: TemplateWithLead) {
       to: schedule.lead.email,
       subject,
       text,
-      html: textToHtml(text),
+      html: markdownToHtml(text),
     });
 
     if (result.error) {
@@ -167,27 +168,4 @@ function getSalesContactUrl(settings: ResendSettings) {
     process.env.SALES_TEAM_CONTACT_URL ||
     `mailto:${settings.fromEmail}?subject=${encodeURIComponent("Quero falar com a equipe de corretores")}`
   );
-}
-
-function textToHtml(text: string) {
-  return text
-    .split("\n")
-    .map((line) => {
-      const button = line.match(/^\s*\[([^\]]+)\]\((https?:\/\/[^)]+|mailto:[^)]+)\)\s*$/);
-
-      if (button) {
-        return `<p style="margin:28px 0;"><a href="${escapeHtml(button[2])}" style="display:inline-block;background:#98743e;color:#ffffff;text-decoration:none;padding:14px 22px;border-radius:8px;font-weight:700;">${escapeHtml(button[1])}</a></p>`;
-      }
-
-      return `<p>${line ? escapeHtml(line) : "&nbsp;"}</p>`;
-    })
-    .join("");
-}
-
-function escapeHtml(text: string) {
-  return text
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
 }

@@ -1,6 +1,7 @@
 import { AdminShell } from "@/components/admin-shell";
 import { AdminMessagesManager } from "@/components/admin-messages-manager";
 import { canEditLeads, getCurrentUser } from "@/lib/auth";
+import { LANDING_SETTINGS_KEY } from "@/lib/landing";
 import { getPrisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -9,6 +10,11 @@ export default async function MessagesPage() {
   const currentUser = await getCurrentUser();
   const canEdit = currentUser ? canEditLeads(currentUser.role) : false;
   const templates = await getPrisma().messageTemplate.findMany({
+    where: {
+      name: {
+        not: LANDING_SETTINGS_KEY,
+      },
+    },
     orderBy: { createdAt: "desc" },
     include: {
       _count: {

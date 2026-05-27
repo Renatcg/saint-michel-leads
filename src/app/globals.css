@@ -69,3 +69,18 @@ button {
   min-height: 100vh;
   background: #f6f4ef;
 }
+
+.prose-preview p {
+  margin: 0 0 12px;
+}
+
+.prose-preview h2 {
+  font-size: 22px;
+  line-height: 1.25;
+  margin: 20px 0 12px;
+}
+
+.prose-preview img {
+  max-width: 100%;
+  border-radius: 8px;
+}

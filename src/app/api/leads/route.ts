@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { MessageTrigger } from "@prisma/client";
+import { LANDING_SETTINGS_KEY } from "@/lib/landing";
 import { expandTemplateChannels, processImmediateEmailSchedules } from "@/lib/message-delivery";
 import { getPrisma } from "@/lib/prisma";
 import { leadSchema, normalizePhone } from "@/lib/validators";
@@ -41,6 +42,9 @@ async function buildSchedules() {
   const templates = await prisma.messageTemplate.findMany({
     where: {
       active: true,
+      name: {
+        not: LANDING_SETTINGS_KEY,
+      },
       trigger: {
         in: [MessageTrigger.ON_LEAD_CREATED, MessageTrigger.AFTER_DAYS],
       },

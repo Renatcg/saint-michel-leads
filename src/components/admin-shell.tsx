@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 
 const navItems = [
   { href: "/admin", label: "Dashboard" },
+  { href: "/admin/landing", label: "Landing" },
   { href: "/admin/leads", label: "Leads" },
   { href: "/admin/users", label: "Usuários" },
   { href: "/admin/messages", label: "Mensagens" },

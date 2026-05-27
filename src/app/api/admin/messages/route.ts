@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminUser } from "@/lib/admin-auth";
+import { LANDING_SETTINGS_KEY } from "@/lib/landing";
 import { getPrisma } from "@/lib/prisma";
 import { messageTemplateSchema } from "@/lib/validators";
 
@@ -11,6 +12,11 @@ export async function GET() {
   }
 
   const templates = await getPrisma().messageTemplate.findMany({
+    where: {
+      name: {
+        not: LANDING_SETTINGS_KEY,
+      },
+    },
     orderBy: { createdAt: "desc" },
     include: {
       _count: {
@@ -37,6 +43,10 @@ export async function POST(request: Request) {
 
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Dados inválidos." }, { status: 400 });
+  }
+
+  if (parsed.data.name === LANDING_SETTINGS_KEY) {
+    return NextResponse.json({ error: "Nome reservado para configuração interna." }, { status: 400 });
   }
 
   const template = await getPrisma().messageTemplate.create({
