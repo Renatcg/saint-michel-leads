@@ -291,19 +291,24 @@ export function AdminLandingSettings({ initialSettings, canEdit }: { initialSett
             <h3 className="text-lg font-semibold">Acima da headline</h3>
             <div className="mt-4 space-y-4">
               <label className="block">
-                <span className="mb-2 block text-sm font-medium text-neutral-700">Usar texto ou logo?</span>
+                <span className="mb-2 block text-sm font-medium text-neutral-700">Usar texto, logo ou ocultar?</span>
                 <select
                   className="w-full rounded-lg border border-black/15 px-3 py-3 outline-none focus:border-[#98743e]"
                   disabled={!canEdit}
                   value={settings.heroTopMode}
-                  onChange={(event) => setSettings({ ...settings, heroTopMode: event.target.value as "text" | "logo" })}
+                  onChange={(event) => setSettings({ ...settings, heroTopMode: event.target.value as "text" | "logo" | "none" })}
                 >
                   <option value="text">Texto</option>
                   <option value="logo">Logo</option>
+                  <option value="none">Ocultar</option>
                 </select>
               </label>
 
-              {settings.heroTopMode === "text" ? (
+              {settings.heroTopMode === "none" ? (
+                <p className="rounded-lg bg-white px-3 py-3 text-sm text-neutral-600">
+                  O espaço acima da headline ficará oculto na landing.
+                </p>
+              ) : settings.heroTopMode === "text" ? (
                 <label className="block">
                   <span className="mb-2 block text-sm font-medium text-neutral-700">Texto acima da headline</span>
                   <input
@@ -604,7 +609,7 @@ export function AdminLandingSettings({ initialSettings, canEdit }: { initialSett
         <div className="absolute inset-0" style={{ backgroundColor: settings.overlayColor, opacity: settings.overlayOpacity }} />
         <div className="relative z-10 flex min-h-[560px] items-center p-8">
           <div className="max-w-2xl">
-            {settings.heroTopMode === "logo" && settings.heroLogoUrl ? (
+            {settings.heroTopMode === "none" ? null : settings.heroTopMode === "logo" && settings.heroLogoUrl ? (
               <img
                 alt={settings.heroLogoAlt}
                 className="mb-6 block h-auto max-w-[220px]"

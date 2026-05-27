@@ -13,7 +13,7 @@ export type LandingSettings = {
   logoUrl: string;
   logoAlt: string;
   logoHeight: number;
-  heroTopMode: "text" | "logo";
+  heroTopMode: "text" | "logo" | "none";
   heroLogoUrl: string;
   heroLogoAlt: string;
   heroLogoOpacity: number;
@@ -147,7 +147,7 @@ export function normalizeLandingSettings(settings: Partial<LandingSettings>): La
     logoUrl: settings.logoUrl || "",
     logoAlt: settings.logoAlt || defaultLandingSettings.logoAlt,
     logoHeight: clamp(Number(settings.logoHeight ?? defaultLandingSettings.logoHeight), 24, 120),
-    heroTopMode: settings.heroTopMode === "logo" ? "logo" : "text",
+    heroTopMode: settings.heroTopMode === "logo" || settings.heroTopMode === "none" ? settings.heroTopMode : "text",
     heroLogoUrl: settings.heroLogoUrl || "",
     heroLogoAlt: settings.heroLogoAlt || defaultLandingSettings.heroLogoAlt,
     heroLogoOpacity: clamp(Number(settings.heroLogoOpacity ?? defaultLandingSettings.heroLogoOpacity), 0, 1),

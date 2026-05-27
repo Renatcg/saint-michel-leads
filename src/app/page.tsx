@@ -31,9 +31,9 @@ export default async function Home() {
         </div>
       </header>
 
-      <section className="relative z-10 mx-auto grid min-h-screen w-full max-w-7xl items-center gap-5 px-4 pb-5 pt-20 sm:gap-7 sm:px-6 md:grid-cols-[1.05fr_.95fr] md:gap-10 md:px-10 md:py-10 lg:px-12">
+      <section className="relative z-10 mx-auto grid min-h-screen w-full max-w-7xl items-center gap-2 px-4 pb-5 pt-20 sm:gap-3 sm:px-6 md:grid-cols-[1.05fr_.95fr] md:gap-10 md:px-10 md:py-10 lg:px-12">
         <div className="max-w-2xl text-left">
-          {landing.heroTopMode === "logo" && landing.heroLogoUrl ? (
+          {landing.heroTopMode === "none" ? null : landing.heroTopMode === "logo" && landing.heroLogoUrl ? (
             <img
               alt={landing.heroLogoAlt}
               className="mb-3 block h-auto max-w-[150px] sm:max-w-[190px] md:mb-6 md:max-w-[260px]"

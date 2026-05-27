@@ -80,7 +80,8 @@ async function sendEmailSchedule(schedule: TemplateWithLead) {
 
     const salesContactUrl = await getSalesContactUrl(settings);
     const subject = renderMessageTemplate(schedule.template.subject, schedule.lead, { salesContactUrl });
-    const text = renderMessageTemplate(schedule.template.body, schedule.lead, { salesContactUrl });
+    const renderedBody = renderMessageTemplate(schedule.template.body, schedule.lead, { salesContactUrl });
+    const text = replaceSalesContactLinks(renderedBody, salesContactUrl);
     const resend = new Resend(settings.apiKey);
     const result = await resend.emails.send({
       from: formatFrom(settings),
@@ -165,13 +166,20 @@ function formatFrom(settings: ResendSettings) {
 }
 
 async function getSalesContactUrl(settings: ResendSettings) {
-  if (process.env.SALES_TEAM_CONTACT_URL) {
-    return process.env.SALES_TEAM_CONTACT_URL;
-  }
-
   const landingSettings = await getLandingSettings();
   return (
     buildSalesContactUrl(landingSettings) ||
+    process.env.SALES_TEAM_CONTACT_URL ||
     `mailto:${settings.fromEmail}?subject=${encodeURIComponent("Quero falar com a equipe de corretores")}`
   );
+}
+
+function replaceSalesContactLinks(content: string, salesContactUrl: string) {
+  if (!salesContactUrl) {
+    return content;
+  }
+
+  return content
+    .replace(/https:\/\/wa\.me\/\d+(?:\?[^\s)\]]*)?/g, salesContactUrl)
+    .replace(/https:\/\/api\.whatsapp\.com\/send\?phone=\d+(?:[^\s)\]]*)?/g, salesContactUrl);
 }
