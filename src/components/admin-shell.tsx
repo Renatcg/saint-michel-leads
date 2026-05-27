@@ -11,7 +11,7 @@ const navItems = [
   { href: "/admin/integrations", label: "Integrações" },
 ];
 
-export default async function ProtectedAdminLayout({ children }: { children: React.ReactNode }) {
+export async function AdminShell({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
 
   if (!user) {

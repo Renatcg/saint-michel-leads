@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { LoginForm } from "@/components/login-form";
 
 export default function LoginPage() {
@@ -9,7 +10,9 @@ export default function LoginPage() {
         <p className="mt-2 text-sm leading-6 text-white/68">
           Entre com seu usuário para acessar leads, mensagens e configurações.
         </p>
-        <LoginForm />
+        <Suspense fallback={null}>
+          <LoginForm />
+        </Suspense>
       </section>
     </main>
   );
