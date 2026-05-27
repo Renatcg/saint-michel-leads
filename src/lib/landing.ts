@@ -17,7 +17,7 @@ export type LandingSettings = {
 export const LANDING_SETTINGS_KEY = "__landing_settings";
 
 export const defaultLandingSettings: LandingSettings = {
-  videoUrl: "https://videos.pexels.com/video-files/3773486/3773486-uhd_2560_1440_30fps.mp4",
+  videoUrl: "",
   posterUrl: "",
   videoFit: "cover",
   videoPosition: "center center",
@@ -81,8 +81,13 @@ export async function saveLandingSettings(settings: LandingSettings) {
 }
 
 export function normalizeLandingSettings(settings: Partial<LandingSettings>): LandingSettings {
+  const videoUrl =
+    settings.videoUrl && !settings.videoUrl.includes("videos.pexels.com/video-files/3773486")
+      ? settings.videoUrl
+      : "";
+
   return {
-    videoUrl: settings.videoUrl || defaultLandingSettings.videoUrl,
+    videoUrl,
     posterUrl: settings.posterUrl || "",
     videoFit: settings.videoFit === "contain" ? "contain" : "cover",
     videoPosition: settings.videoPosition || defaultLandingSettings.videoPosition,

@@ -7,6 +7,7 @@ export function AdminLandingSettings({ initialSettings, canEdit }: { initialSett
   const [settings, setSettings] = useState(initialSettings);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [videoStatus, setVideoStatus] = useState("Aguardando carregamento do vídeo.");
 
   async function save() {
     setLoading(true);
@@ -199,20 +200,28 @@ export function AdminLandingSettings({ initialSettings, canEdit }: { initialSett
       </section>
 
       <section className="relative min-h-[560px] overflow-hidden rounded-lg bg-neutral-950 text-white">
-        <video
-          key={settings.videoUrl}
-          className="absolute inset-0 h-full w-full"
-          style={{ objectFit: settings.videoFit, objectPosition: settings.videoPosition }}
-          autoPlay
-          controls
-          loop
-          muted
-          playsInline
-          preload="auto"
-          poster={settings.posterUrl || undefined}
-        >
-          <source src={settings.videoUrl} type="video/mp4" />
-        </video>
+        {settings.videoUrl ? (
+          <video
+            key={settings.videoUrl}
+            className="absolute inset-0 h-full w-full"
+            style={{ objectFit: settings.videoFit, objectPosition: settings.videoPosition }}
+            autoPlay
+            controls
+            loop
+            muted
+            playsInline
+            preload="auto"
+            poster={settings.posterUrl || undefined}
+            src={settings.videoUrl}
+            onCanPlay={() => setVideoStatus("Vídeo carregado e pronto para tocar.")}
+            onError={() => setVideoStatus("Não foi possível carregar este vídeo. Verifique se a URL é pública e se o formato é compatível.")}
+            onPlay={() => setVideoStatus("Vídeo em reprodução no preview.")}
+          />
+        ) : (
+          <div className="absolute inset-0 grid place-items-center bg-neutral-900 px-8 text-center text-white/70">
+            Informe uma URL pública de vídeo ou envie um arquivo leve para visualizar aqui.
+          </div>
+        )}
         <div className="absolute inset-0" style={{ backgroundColor: settings.overlayColor, opacity: settings.overlayOpacity }} />
         <div className="relative z-10 flex min-h-[560px] items-center p-8">
           <div className="max-w-2xl">
@@ -220,6 +229,9 @@ export function AdminLandingSettings({ initialSettings, canEdit }: { initialSett
             <h2 className="text-4xl font-semibold leading-[1.02] sm:text-5xl">{settings.headline}</h2>
             <p className="mt-6 text-lg leading-8 text-white/82">{settings.subheadline}</p>
           </div>
+        </div>
+        <div className="absolute bottom-4 left-4 right-4 z-20 rounded-lg bg-black/60 px-4 py-3 text-sm text-white">
+          {videoStatus}
         </div>
       </section>
     </div>

@@ -37,6 +37,10 @@ export function LandingBackgroundVideo({ videoUrl, posterUrl, fit, position, pla
     };
   }, [playbackRate, videoUrl]);
 
+  if (!videoUrl) {
+    return null;
+  }
+
   return (
     <video
       key={videoUrl}
@@ -49,8 +53,7 @@ export function LandingBackgroundVideo({ videoUrl, posterUrl, fit, position, pla
       playsInline
       preload="auto"
       poster={posterUrl || undefined}
-    >
-      <source src={videoUrl} type="video/mp4" />
-    </video>
+      src={videoUrl}
+    />
   );
 }
