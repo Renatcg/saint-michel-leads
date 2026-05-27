@@ -1,5 +1,6 @@
 "use client";
 
+import { upload } from "@vercel/blob/client";
 import { useState } from "react";
 import type { LandingSettings } from "@/lib/landing";
 
@@ -8,6 +9,7 @@ export function AdminLandingSettings({ initialSettings, canEdit }: { initialSett
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [videoStatus, setVideoStatus] = useState("Aguardando carregamento do vídeo.");
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   async function save() {
     setLoading(true);
@@ -39,13 +41,32 @@ export function AdminLandingSettings({ initialSettings, canEdit }: { initialSett
       return;
     }
 
-    if (file.size > 4 * 1024 * 1024) {
-      setMessage("Use um vídeo de até 4 MB ou informe uma URL externa do vídeo.");
+    if (file.size > 20 * 1024 * 1024) {
+      setMessage("Use um vídeo de até 20 MB.");
       return;
     }
 
-    const dataUrl = await fileToDataUrl(file);
-    setSettings({ ...settings, videoUrl: dataUrl });
+    setLoading(true);
+    setUploadProgress(0);
+    setMessage("");
+
+    try {
+      const blob = await upload(`landing/${Date.now()}-${sanitizeFileName(file.name)}`, file, {
+        access: "public",
+        handleUploadUrl: "/api/admin/blob/upload",
+        multipart: file.size > 8 * 1024 * 1024,
+        contentType: file.type,
+        onUploadProgress: ({ percentage }) => setUploadProgress(percentage),
+      });
+
+      setSettings({ ...settings, videoUrl: blob.url, posterUrl: "" });
+      setMessage("Vídeo enviado. Salve a landing para publicar.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Não foi possível enviar o vídeo.");
+    } finally {
+      setLoading(false);
+      setUploadProgress(null);
+    }
   }
 
   return (
@@ -65,8 +86,9 @@ export function AdminLandingSettings({ initialSettings, canEdit }: { initialSett
 
           <label className="block rounded-lg border border-dashed border-black/20 p-4 text-sm text-neutral-700">
             <span className="block font-medium">Submeter vídeo</span>
-            <span className="mt-1 block text-xs text-neutral-500">Para produção, prefira URL externa. Upload direto aceita vídeos leves de até 4 MB.</span>
+            <span className="mt-1 block text-xs text-neutral-500">Upload via Vercel Blob. Aceita vídeos de até 20 MB, incluindo seu arquivo de 8 MB.</span>
             <input className="mt-3 block w-full text-sm" disabled={!canEdit} type="file" accept="video/*" onChange={(event) => uploadVideo(event.target.files)} />
+            {uploadProgress !== null ? <span className="mt-2 block text-xs text-neutral-500">Enviando: {uploadProgress}%</span> : null}
           </label>
 
           <label className="block">
@@ -238,11 +260,11 @@ export function AdminLandingSettings({ initialSettings, canEdit }: { initialSett
   );
 }
 
-function fileToDataUrl(file: File) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
+function sanitizeFileName(fileName: string) {
+  return fileName
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/-+/g, "-")
+    .toLowerCase();
 }
