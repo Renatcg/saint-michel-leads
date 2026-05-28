@@ -158,19 +158,20 @@ export function AdminMessagesManager({ initialTemplates, canEdit }: { initialTem
       {message ? <p className="mb-4 rounded-lg bg-white px-4 py-3 text-sm text-neutral-700">{message}</p> : null}
 
       <section className="overflow-hidden rounded-lg border border-black/10 bg-white">
-        <div className="grid grid-cols-[1.4fr_.7fr_1fr_auto] gap-4 border-b border-black/10 bg-neutral-50 px-4 py-3 text-xs font-bold uppercase tracking-[0.12em] text-neutral-500">
+        <div className="hidden grid-cols-[1.3fr_.7fr_.7fr_1fr_auto] gap-4 border-b border-black/10 bg-neutral-50 px-4 py-3 text-xs font-bold uppercase tracking-[0.12em] text-neutral-500 md:grid">
           <span>Nome</span>
+          <span>Tipo</span>
           <span>Status</span>
           <span>Gatilho</span>
           <span className="text-right">Ações</span>
         </div>
         <div className="divide-y divide-black/10">
           {templates.map((template) => (
-            <article className="grid grid-cols-1 gap-3 px-4 py-4 md:grid-cols-[1.4fr_.7fr_1fr_auto] md:items-center md:gap-4" key={template.id}>
+            <article className="grid grid-cols-1 gap-3 px-4 py-4 md:grid-cols-[1.3fr_.7fr_.7fr_1fr_auto] md:items-center md:gap-4" key={template.id}>
               <div>
                 <h3 className="font-semibold text-neutral-950">{template.name}</h3>
-                <p className="mt-1 text-xs text-neutral-500">{messageChannelLabels[template.channel]}</p>
               </div>
+              <p className="text-sm font-medium text-neutral-700">{messageChannelLabels[template.channel]}</p>
               <div>
                 <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${template.active ? "bg-green-100 text-green-800" : "bg-neutral-200 text-neutral-600"}`}>
                   {template.active ? "Ativa" : "Inativa"}
@@ -323,8 +324,7 @@ function MessageEditorModal({
           </section>
 
           <section className="grid gap-4">
-            <EmailPreview draft={draft} />
-            <WhatsappPreview draft={draft} />
+            <ConditionalPreviews draft={draft} />
           </section>
         </div>
 
@@ -372,29 +372,62 @@ function RichMessageEditor({ value, onChange }: { value: string; onChange: (valu
     sync();
   }
 
+  function wrapBlock(tagName: string) {
+    command("formatBlock", tagName);
+  }
+
   return (
     <div>
       <span className="mb-2 block text-sm font-medium text-neutral-700">Corpo da mensagem</span>
-      <div className="rounded-lg border border-black/15 bg-neutral-50 p-2">
-        <div className="mb-2 flex flex-wrap gap-2">
-          <ToolbarButton label="B" onClick={() => command("bold")} />
-          <ToolbarButton label="I" onClick={() => command("italic")} />
-          <select className="rounded-md border border-black/15 bg-white px-2 py-2 text-xs" defaultValue="" onChange={(event) => event.target.value && command("fontSize", event.target.value)}>
-            <option value="">Tamanho</option>
-            <option value="2">Pequeno</option>
-            <option value="3">Normal</option>
-            <option value="4">Médio</option>
-            <option value="5">Grande</option>
+      <div className="rounded-lg border border-black/15 bg-neutral-50">
+        <div className="flex flex-wrap items-center gap-1 border-b border-black/10 bg-white px-2 py-2">
+          <select className="h-9 rounded-md border border-black/15 bg-white px-2 text-xs" defaultValue="" onChange={(event) => event.target.value && wrapBlock(event.target.value)}>
+            <option value="">Parágrafo</option>
+            <option value="h1">Título 1</option>
+            <option value="h2">Título 2</option>
+            <option value="p">Texto</option>
           </select>
-          <ToolbarButton label="Lista" onClick={() => command("insertUnorderedList")} />
-          <ToolbarButton label="Lista nº" onClick={() => command("insertOrderedList")} />
-          <ToolbarButton label="Recuar" onClick={() => command("indent")} />
-          <ToolbarButton label="Voltar" onClick={() => command("outdent")} />
-          <ToolbarButton label="Linha 1.2" onClick={() => applyInlineStyle("line-height:1.2;")} />
-          <ToolbarButton label="Linha 1.6" onClick={() => applyInlineStyle("line-height:1.6;")} />
-          <ToolbarButton label="Espaço +" onClick={() => insertHtml('<p style="margin:24px 0;">Novo parágrafo</p>')} />
-          <ToolbarButton label="Botão" onClick={() => insertHtml('<p style="margin:28px 0;"><a href="{{link_corretores}}" style="display:inline-block;background:#98743e;color:#ffffff;text-decoration:none;padding:14px 22px;border-radius:8px;font-weight:700;">Falar com corretores</a></p>')} />
-          <ToolbarButton label="{{nome}}" onClick={() => insertHtml("{{nome}}")} />
+          <select className="h-9 rounded-md border border-black/15 bg-white px-2 text-xs" defaultValue="" onChange={(event) => event.target.value && command("fontSize", event.target.value)}>
+            <option value="">Fonte</option>
+            <option value="2">12</option>
+            <option value="3">16</option>
+            <option value="4">20</option>
+            <option value="5">24</option>
+          </select>
+
+          <ToolbarDivider />
+          <ToolbarButton label="Negrito" icon="B" onClick={() => command("bold")} />
+          <ToolbarButton label="Itálico" icon="I" italic onClick={() => command("italic")} />
+          <ToolbarButton label="Sublinhado" icon="U" underline onClick={() => command("underline")} />
+
+          <ToolbarDivider />
+          <ToolbarButton label="Alinhar à esquerda" icon="↤" onClick={() => command("justifyLeft")} />
+          <ToolbarButton label="Centralizar" icon="↔" onClick={() => command("justifyCenter")} />
+          <ToolbarButton label="Alinhar à direita" icon="↦" onClick={() => command("justifyRight")} />
+
+          <ToolbarDivider />
+          <ToolbarButton label="Lista" icon="•" onClick={() => command("insertUnorderedList")} />
+          <ToolbarButton label="Lista numerada" icon="1." onClick={() => command("insertOrderedList")} />
+          <ToolbarButton label="Diminuir recuo" icon="←" onClick={() => command("outdent")} />
+          <ToolbarButton label="Aumentar recuo" icon="→" onClick={() => command("indent")} />
+
+          <ToolbarDivider />
+          <select className="h-9 rounded-md border border-black/15 bg-white px-2 text-xs" defaultValue="" onChange={(event) => event.target.value && applyInlineStyle(`line-height:${event.target.value};`)}>
+            <option value="">Entre linhas</option>
+            <option value="1.2">1.2</option>
+            <option value="1.5">1.5</option>
+            <option value="1.8">1.8</option>
+          </select>
+          <select className="h-9 rounded-md border border-black/15 bg-white px-2 text-xs" defaultValue="" onChange={(event) => event.target.value && insertHtml(`<p style="margin:${event.target.value}px 0;">Novo parágrafo</p>`)}>
+            <option value="">Entre parágrafos</option>
+            <option value="12">12px</option>
+            <option value="20">20px</option>
+            <option value="28">28px</option>
+          </select>
+
+          <ToolbarDivider />
+          <ToolbarButton label="Inserir botão" icon="Botão" onClick={() => insertHtml('<p style="margin:28px 0;"><a href="{{link_corretores}}" style="display:inline-block;background:#98743e;color:#ffffff;text-decoration:none;padding:14px 22px;border-radius:8px;font-weight:700;">Falar com corretores</a></p>')} />
+          <ToolbarButton label="Inserir nome" icon="{{nome}}" onClick={() => insertHtml("{{nome}}")} />
         </div>
         <div
           ref={editorRef}
@@ -430,11 +463,27 @@ function PreviewModal({ template, onClose }: { template: TemplateRow; onClose: (
           <button className="rounded-lg border border-black/15 px-4 py-2 font-semibold" type="button" onClick={onClose}>Fechar</button>
         </div>
         <div className="mt-5 grid gap-4 lg:grid-cols-2">
-          <EmailPreview draft={draft} />
-          <WhatsappPreview draft={draft} />
+          <ConditionalPreviews draft={draft} />
         </div>
       </div>
     </div>
+  );
+}
+
+function ConditionalPreviews({ draft }: { draft: Draft }) {
+  if (draft.channel === "EMAIL") {
+    return <EmailPreview draft={draft} />;
+  }
+
+  if (draft.channel === "WHATSAPP") {
+    return <WhatsappPreview draft={draft} />;
+  }
+
+  return (
+    <>
+      <EmailPreview draft={draft} />
+      <WhatsappPreview draft={draft} />
+    </>
   );
 }
 
@@ -475,12 +524,35 @@ function TextInput({ label, value, placeholder, onChange }: { label: string; val
   );
 }
 
-function ToolbarButton({ label, onClick }: { label: string; onClick: () => void }) {
+function ToolbarButton({
+  label,
+  icon,
+  italic,
+  underline,
+  onClick,
+}: {
+  label: string;
+  icon: string;
+  italic?: boolean;
+  underline?: boolean;
+  onClick: () => void;
+}) {
   return (
-    <button className="rounded-md border border-black/15 bg-white px-3 py-2 text-xs font-semibold hover:bg-neutral-100" type="button" onMouseDown={(event) => event.preventDefault()} onClick={onClick}>
-      {label}
+    <button
+      aria-label={label}
+      className={`h-9 min-w-9 rounded-md border border-black/15 bg-white px-2 text-xs font-semibold hover:bg-neutral-100 ${italic ? "italic" : ""} ${underline ? "underline" : ""}`}
+      title={label}
+      type="button"
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={onClick}
+    >
+      {icon}
     </button>
   );
+}
+
+function ToolbarDivider() {
+  return <span className="mx-1 h-6 w-px bg-black/10" />;
 }
 
 function IconButton({ children, label, danger, disabled, onClick }: { children: ReactNode; label: string; danger?: boolean; disabled?: boolean; onClick: () => void }) {
