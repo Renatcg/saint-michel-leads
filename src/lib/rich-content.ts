@@ -1,4 +1,8 @@
 export function markdownToHtml(text: string) {
+  if (looksLikeHtml(text)) {
+    return text;
+  }
+
   return text
     .split("\n")
     .map((line) => {
@@ -21,6 +25,10 @@ export function markdownToHtml(text: string) {
       return `<p>${line ? formatInline(line) : "&nbsp;"}</p>`;
     })
     .join("");
+}
+
+function looksLikeHtml(content: string) {
+  return /<\/?[a-z][\s\S]*>/i.test(content);
 }
 
 export function escapeHtml(text: string) {
