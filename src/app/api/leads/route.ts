@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { after } from "next/server";
 import { MessageTrigger } from "@prisma/client";
 import { LANDING_SETTINGS_KEY } from "@/lib/landing";
 import { expandTemplateChannels, processImmediateSchedules } from "@/lib/message-delivery";
@@ -34,6 +35,22 @@ export async function POST(request: Request) {
 
   const prisma = getPrisma();
   const phone = normalizePhone(parsed.data.phone);
+  const existingLead = await prisma.lead.findFirst({
+    where: {
+      OR: [
+        { email: parsed.data.email },
+        { phone },
+      ],
+    },
+    select: { id: true },
+  });
+
+  if (existingLead) {
+    return NextResponse.json(
+      { error: "Este cadastro já existe. Nossa equipe já recebeu seus dados." },
+      { status: 409 },
+    );
+  }
 
   const lead = await prisma.lead.create({
     data: {
@@ -41,13 +58,16 @@ export async function POST(request: Request) {
       email: parsed.data.email,
       phone,
       acceptedDataUsage: true,
-      schedules: {
-        create: await buildSchedules(),
-      },
     },
   });
 
-  await processImmediateSchedules(lead.id);
+  after(async () => {
+    try {
+      await createSchedulesAndProcessImmediate(lead.id);
+    } catch (error) {
+      console.error("Não foi possível processar mensagens do lead.", error);
+    }
+  });
 
   return NextResponse.json({ id: lead.id }, { status: 201 });
 }
@@ -85,4 +105,20 @@ async function buildSchedules() {
       scheduledFor,
     }));
   });
+}
+
+async function createSchedulesAndProcessImmediate(leadId: string) {
+  const prisma = getPrisma();
+  const schedules = await buildSchedules();
+
+  if (schedules.length > 0) {
+    await prisma.messageSchedule.createMany({
+      data: schedules.map((schedule) => ({
+        ...schedule,
+        leadId,
+      })),
+    });
+  }
+
+  await processImmediateSchedules(leadId);
 }
