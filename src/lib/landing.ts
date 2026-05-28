@@ -43,6 +43,9 @@ export type LandingSettings = {
   successPageCardText: string;
   successPageButtonText: string;
   successPageButtonColor: string;
+  successPageBackgroundUrl: string;
+  successPageOverlayColor: string;
+  successPageOverlayOpacity: number;
 };
 
 export const LANDING_SETTINGS_KEY = "__landing_settings";
@@ -93,6 +96,9 @@ export const defaultLandingSettings: LandingSettings = {
     "Antecipar sua análise de crédito pode deixar sua jornada mais rápida, mais segura e mais estratégica quando as oportunidades forem liberadas.",
   successPageButtonText: "Falar agora com a equipe de corretores",
   successPageButtonColor: "#98743e",
+  successPageBackgroundUrl: "",
+  successPageOverlayColor: "#000000",
+  successPageOverlayOpacity: 0.68,
 };
 
 export async function getLandingSettings() {
@@ -193,6 +199,13 @@ export function normalizeLandingSettings(settings: Partial<LandingSettings>): La
     successPageCardText: settings.successPageCardText || defaultLandingSettings.successPageCardText,
     successPageButtonText: settings.successPageButtonText || defaultLandingSettings.successPageButtonText,
     successPageButtonColor: settings.successPageButtonColor || defaultLandingSettings.successPageButtonColor,
+    successPageBackgroundUrl: settings.successPageBackgroundUrl || defaultLandingSettings.successPageBackgroundUrl,
+    successPageOverlayColor: settings.successPageOverlayColor || defaultLandingSettings.successPageOverlayColor,
+    successPageOverlayOpacity: clamp(
+      Number(settings.successPageOverlayOpacity ?? defaultLandingSettings.successPageOverlayOpacity),
+      0,
+      1,
+    ),
   };
 }
 

@@ -14,7 +14,7 @@ export default async function LandingSettingsPage() {
       <section>
         <h1 className="text-3xl font-semibold">Landing Page</h1>
         <p className="mt-2 max-w-2xl text-neutral-600">
-          Atualize o vídeo da primeira dobra, overlay, headline e subheadline.
+          Atualize as áreas públicas do site por abas: cabeçalho, hero, formulário e página de sucesso.
         </p>
         <AdminLandingSettings canEdit={canEdit} initialSettings={await getLandingSettings()} />
       </section>

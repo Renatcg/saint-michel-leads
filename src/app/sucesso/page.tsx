@@ -8,7 +8,7 @@ const fallbackBackground =
 export default async function SuccessPage() {
   const landing = await getLandingSettings();
   const salesContactUrl = buildSalesContactUrl(landing) || process.env.SALES_TEAM_CONTACT_URL || "/";
-  const backgroundImage = landing.posterUrl || fallbackBackground;
+  const backgroundImage = landing.successPageBackgroundUrl || landing.posterUrl || fallbackBackground;
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-neutral-950 text-white">
@@ -16,7 +16,10 @@ export default async function SuccessPage() {
         className="absolute inset-0 bg-cover bg-center"
         style={{ backgroundImage: `url(${backgroundImage})` }}
       />
-      <div className="absolute inset-0 bg-black/68" />
+      <div
+        className="absolute inset-0"
+        style={{ backgroundColor: landing.successPageOverlayColor, opacity: landing.successPageOverlayOpacity }}
+      />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_28%_35%,rgba(216,189,133,0.22),transparent_34%),linear-gradient(90deg,rgba(0,0,0,0.72),rgba(0,0,0,0.2))]" />
 
       <section className="relative z-10 mx-auto flex min-h-screen w-full max-w-7xl items-center px-4 py-10 sm:px-6 md:px-10 lg:px-12">

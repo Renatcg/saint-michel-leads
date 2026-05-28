@@ -1,13 +1,24 @@
 import { AdminShell } from "@/components/admin-shell";
+import { AdminIntegrationsSettings } from "@/components/admin-integrations-settings";
+import { canEditLeads, getCurrentUser } from "@/lib/auth";
+import { getIntegrationSettings } from "@/lib/integrations";
+import { getLandingSettings } from "@/lib/landing";
 
-export default function IntegrationsPage() {
+export const dynamic = "force-dynamic";
+
+export default async function IntegrationsPage() {
+  const currentUser = await getCurrentUser();
+  const canEdit = currentUser ? canEditLeads(currentUser.role) : false;
+  const [integrations, landing] = await Promise.all([getIntegrationSettings(), getLandingSettings()]);
+
   return (
     <AdminShell>
-      <section className="rounded-lg border border-black/10 bg-white p-6">
+      <section>
         <h1 className="text-3xl font-semibold">Integrações</h1>
         <p className="mt-3 max-w-2xl text-neutral-600">
-          Próxima etapa: formulário protegido para configurar Resend, Evolution API e testes de envio sem expor chaves sensíveis.
+          Configure os canais de envio e o contato comercial usado nos botões e mensagens.
         </p>
+        <AdminIntegrationsSettings canEdit={canEdit} initialIntegrations={integrations} initialSalesPhone={landing.salesPhone} />
       </section>
     </AdminShell>
   );

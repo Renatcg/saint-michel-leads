@@ -16,7 +16,7 @@ export async function POST(request: Request) {
       body,
       request,
       onBeforeGenerateToken: async (pathname) => {
-        if (!pathname.startsWith("landing/") && !pathname.startsWith("logos/")) {
+        if (!pathname.startsWith("landing/") && !pathname.startsWith("logos/") && !pathname.startsWith("success/")) {
           throw new Error("Caminho de upload inválido.");
         }
 

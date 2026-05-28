@@ -146,9 +146,9 @@ async function getResendSettings(): Promise<ResendSettings | null> {
     orderBy: { updatedAt: "desc" },
   });
 
-  const apiKey = process.env.RESEND_API_KEY || settings?.resendApiKey;
-  const fromEmail = process.env.RESEND_FROM_EMAIL || settings?.resendFromEmail;
-  const fromName = process.env.RESEND_FROM_NAME || settings?.resendFromName || "Saint Michel Construtora";
+  const apiKey = settings?.resendApiKey || process.env.RESEND_API_KEY;
+  const fromEmail = settings?.resendFromEmail || process.env.RESEND_FROM_EMAIL;
+  const fromName = settings?.resendFromName || process.env.RESEND_FROM_NAME || "Saint Michel Construtora";
 
   if (!apiKey || !fromEmail) {
     return null;
