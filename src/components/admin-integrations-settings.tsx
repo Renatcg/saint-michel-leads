@@ -15,7 +15,11 @@ export function AdminIntegrationsSettings({
   const [integrations, setIntegrations] = useState(initialIntegrations);
   const [salesPhone, setSalesPhone] = useState(initialSalesPhone);
   const [message, setMessage] = useState("");
+  const [testNumber, setTestNumber] = useState("21967566636");
+  const [testText, setTestText] = useState("Teste Saint Michel: sua integração com WhatsApp está funcionando.");
+  const [testMessage, setTestMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [testingWhatsApp, setTestingWhatsApp] = useState(false);
 
   function update(next: Partial<AdminIntegrationSettings>) {
     setIntegrations((current) => ({ ...current, ...next }));
@@ -43,6 +47,27 @@ export function AdminIntegrationsSettings({
     setIntegrations(data.integrations);
     setSalesPhone(data.salesPhone);
     setMessage("Integrações atualizadas.");
+  }
+
+  async function sendWhatsAppTest() {
+    setTestingWhatsApp(true);
+    setTestMessage("");
+
+    const response = await fetch("/api/admin/integrations/test-whatsapp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ number: testNumber, text: testText }),
+    });
+
+    setTestingWhatsApp(false);
+    const data = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      setTestMessage(data?.error ?? "Não foi possível enviar o teste.");
+      return;
+    }
+
+    setTestMessage(`Mensagem enviada para ${data.number}${data.status ? ` (${data.status})` : ""}.`);
   }
 
   return (
@@ -120,6 +145,36 @@ export function AdminIntegrationsSettings({
             placeholder="saint-michel"
             onChange={(value) => update({ evolutionInstanceName: value })}
           />
+        </div>
+
+        <div className="mt-5 rounded-lg border border-black/10 bg-neutral-50 p-4">
+          <h3 className="text-lg font-semibold">Teste de WhatsApp</h3>
+          <p className="mt-2 text-sm leading-6 text-neutral-600">
+            Envie uma mensagem de teste usando a Evolution API configurada na Vercel ou, como fallback, os dados cadastrados aqui.
+          </p>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <TextInput label="Número de teste" value={testNumber} canEdit={canEdit} placeholder="21967566636" onChange={setTestNumber} />
+            <label className="block md:col-span-2">
+              <span className="mb-2 block text-sm font-medium text-neutral-700">Mensagem de teste</span>
+              <textarea
+                className="min-h-24 w-full rounded-lg border border-black/15 px-3 py-3 outline-none focus:border-[#98743e]"
+                disabled={!canEdit}
+                value={testText}
+                onChange={(event) => setTestText(event.target.value)}
+              />
+            </label>
+          </div>
+          {canEdit ? (
+            <button
+              className="mt-4 rounded-lg border border-[#98743e] px-4 py-3 text-sm font-semibold text-[#98743e] disabled:opacity-60"
+              type="button"
+              disabled={testingWhatsApp}
+              onClick={sendWhatsAppTest}
+            >
+              {testingWhatsApp ? "Enviando teste..." : "Enviar teste WhatsApp"}
+            </button>
+          ) : null}
+          {testMessage ? <p className="mt-3 text-sm text-neutral-600">{testMessage}</p> : null}
         </div>
       </section>
 
