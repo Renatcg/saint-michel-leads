@@ -1,5 +1,7 @@
 import { getPrisma } from "@/lib/prisma";
 
+const SECRET_PLACEHOLDER = "•••••••• configurado";
+
 export type AdminIntegrationSettings = {
   resendApiKey: string;
   resendFromEmail: string;
@@ -19,6 +21,19 @@ export const defaultIntegrationSettings: AdminIntegrationSettings = {
 };
 
 export async function getIntegrationSettings(): Promise<AdminIntegrationSettings> {
+  const settings = await getStoredIntegrationSettings();
+
+  return {
+    resendApiKey: process.env.RESEND_API_KEY || settings.resendApiKey ? SECRET_PLACEHOLDER : "",
+    resendFromEmail: process.env.RESEND_FROM_EMAIL || settings.resendFromEmail,
+    resendFromName: process.env.RESEND_FROM_NAME || settings.resendFromName || defaultIntegrationSettings.resendFromName,
+    evolutionApiUrl: process.env.EVOLUTION_API_URL || process.env.EVO_API_URL || settings.evolutionApiUrl,
+    evolutionApiKey: process.env.EVOLUTION_API_KEY || process.env.EVO_API_KEY || settings.evolutionApiKey ? SECRET_PLACEHOLDER : "",
+    evolutionInstanceName: process.env.EVOLUTION_INSTANCE_NAME || process.env.EVO_INSTANCE_NAME || settings.evolutionInstanceName,
+  };
+}
+
+export async function getStoredIntegrationSettings(): Promise<AdminIntegrationSettings> {
   const prisma = getPrisma();
   const settings = await prisma.integrationSettings.findFirst({
     orderBy: { updatedAt: "desc" },
@@ -36,10 +51,18 @@ export async function getIntegrationSettings(): Promise<AdminIntegrationSettings
 
 export async function saveIntegrationSettings(settings: Partial<AdminIntegrationSettings>) {
   const prisma = getPrisma();
-  const normalized = normalizeIntegrationSettings(settings);
   const existing = await prisma.integrationSettings.findFirst({
     orderBy: { updatedAt: "desc" },
   });
+  const normalized = normalizeIntegrationSettings(settings);
+
+  if (shouldPreserveSecret(settings.resendApiKey)) {
+    normalized.resendApiKey = existing?.resendApiKey || "";
+  }
+
+  if (shouldPreserveSecret(settings.evolutionApiKey)) {
+    normalized.evolutionApiKey = existing?.evolutionApiKey || "";
+  }
 
   if (existing) {
     return prisma.integrationSettings.update({
@@ -65,7 +88,7 @@ export function normalizeIntegrationSettings(settings: Partial<AdminIntegrationS
 }
 
 export async function getEvolutionRuntimeSettings() {
-  const settings = await getIntegrationSettings();
+  const settings = await getStoredIntegrationSettings();
   const apiUrl = trimTrailingSlash(process.env.EVOLUTION_API_URL || process.env.EVO_API_URL || settings.evolutionApiUrl);
   const apiKey = process.env.EVOLUTION_API_KEY || process.env.EVO_API_KEY || settings.evolutionApiKey;
   const instanceName = process.env.EVOLUTION_INSTANCE_NAME || process.env.EVO_INSTANCE_NAME || settings.evolutionInstanceName;
@@ -123,4 +146,8 @@ export function normalizeWhatsappNumber(phone: string) {
 
 function trimTrailingSlash(value: string) {
   return value.replace(/\/+$/, "");
+}
+
+function shouldPreserveSecret(value: string | undefined) {
+  return !value || value.includes("••••");
 }

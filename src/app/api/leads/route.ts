@@ -3,9 +3,24 @@ import { MessageTrigger } from "@prisma/client";
 import { LANDING_SETTINGS_KEY } from "@/lib/landing";
 import { expandTemplateChannels, processImmediateSchedules } from "@/lib/message-delivery";
 import { getPrisma } from "@/lib/prisma";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { leadSchema, normalizePhone } from "@/lib/validators";
 
 export async function POST(request: Request) {
+  const rateLimit = checkRateLimit(`lead:${getClientIp(request)}`, 5, 10 * 60 * 1000);
+
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Muitas tentativas em pouco tempo. Tente novamente em alguns minutos." },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)),
+        },
+      },
+    );
+  }
+
   const payload = await request.json().catch(() => null);
   const parsed = leadSchema.safeParse(payload);
 
@@ -35,6 +50,13 @@ export async function POST(request: Request) {
   await processImmediateSchedules(lead.id);
 
   return NextResponse.json({ id: lead.id }, { status: 201 });
+}
+
+function getClientIp(request: Request) {
+  const forwardedFor = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  const realIp = request.headers.get("x-real-ip")?.trim();
+
+  return forwardedFor || realIp || "unknown";
 }
 
 async function buildSchedules() {

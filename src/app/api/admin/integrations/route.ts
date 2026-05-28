@@ -22,7 +22,7 @@ export async function PATCH(request: Request) {
   }
 
   const payload = await request.json().catch(() => null);
-  const integrations = await saveIntegrationSettings(payload?.integrations ?? payload ?? {});
+  await saveIntegrationSettings(payload?.integrations ?? payload ?? {});
   const landing = await getLandingSettings();
 
   if (typeof payload?.salesPhone === "string") {
@@ -31,14 +31,7 @@ export async function PATCH(request: Request) {
 
   const updatedLanding = await getLandingSettings();
   return NextResponse.json({
-    integrations: {
-      resendApiKey: integrations.resendApiKey || "",
-      resendFromEmail: integrations.resendFromEmail || "",
-      resendFromName: integrations.resendFromName || "",
-      evolutionApiUrl: integrations.evolutionApiUrl || "",
-      evolutionApiKey: integrations.evolutionApiKey || "",
-      evolutionInstanceName: integrations.evolutionInstanceName || "",
-    },
+    integrations: await getIntegrationSettings(),
     salesPhone: updatedLanding.salesPhone,
   });
 }

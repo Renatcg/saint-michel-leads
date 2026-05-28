@@ -97,10 +97,10 @@ export function AdminIntegrationsSettings({
       <section className="rounded-lg border border-black/10 bg-white p-5">
         <h2 className="text-xl font-semibold">Resend</h2>
         <p className="mt-2 text-sm leading-6 text-neutral-600">
-          Dados usados para envio dos e-mails transacionais e régua de relacionamento.
+          Dados usados para envio dos e-mails transacionais e régua de relacionamento. Chaves salvas não são exibidas novamente.
         </p>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <TextInput label="API Key" value={integrations.resendApiKey} canEdit={canEdit} placeholder="re_..." onChange={(value) => update({ resendApiKey: value })} />
+          <TextInput label="API Key" value={integrations.resendApiKey} canEdit={canEdit} placeholder="re_..." secret onChange={(value) => update({ resendApiKey: value })} />
           <TextInput
             label="E-mail remetente"
             value={integrations.resendFromEmail}
@@ -121,7 +121,7 @@ export function AdminIntegrationsSettings({
       <section className="rounded-lg border border-black/10 bg-white p-5">
         <h2 className="text-xl font-semibold">Evolution API</h2>
         <p className="mt-2 text-sm leading-6 text-neutral-600">
-          Dados que serão usados para envio de WhatsApp pela Evolution API.
+          Dados que serão usados para envio de WhatsApp pela Evolution API. A API Key não é exibida depois de configurada.
         </p>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <TextInput
@@ -136,6 +136,7 @@ export function AdminIntegrationsSettings({
             value={integrations.evolutionApiKey}
             canEdit={canEdit}
             placeholder="Chave da Evolution API"
+            secret
             onChange={(value) => update({ evolutionApiKey: value })}
           />
           <TextInput
@@ -192,12 +193,14 @@ function TextInput({
   label,
   value,
   placeholder,
+  secret,
   canEdit,
   onChange,
 }: {
   label: string;
   value: string;
   placeholder?: string;
+  secret?: boolean;
   canEdit: boolean;
   onChange: (value: string) => void;
 }) {
@@ -208,6 +211,7 @@ function TextInput({
         className="w-full rounded-lg border border-black/15 px-3 py-3 outline-none focus:border-[#98743e]"
         disabled={!canEdit}
         placeholder={placeholder}
+        type={secret ? "password" : "text"}
         value={value}
         onChange={(event) => onChange(event.target.value)}
       />
