@@ -1,11 +1,13 @@
 import { DeliveryStatus, MessageChannel, MessageTrigger, type Lead, type MessageTemplate } from "@prisma/client";
 import { Resend } from "resend";
+import { sendEvolutionTextMessage } from "@/lib/integrations";
 import { buildSalesContactUrl, getLandingSettings } from "@/lib/landing";
 import { getPrisma } from "@/lib/prisma";
 import { markdownToHtml } from "@/lib/rich-content";
 
 type TemplateWithLead = {
   id: string;
+  channel: MessageChannel;
   lead: Lead;
   template: MessageTemplate;
 };
@@ -40,12 +42,11 @@ export function expandTemplateChannels(channel: MessageChannel) {
   return [channel];
 }
 
-export async function processImmediateEmailSchedules(leadId: string) {
+export async function processImmediateSchedules(leadId: string) {
   const prisma = getPrisma();
   const schedules = await prisma.messageSchedule.findMany({
     where: {
       leadId,
-      channel: MessageChannel.EMAIL,
       status: DeliveryStatus.PENDING,
       scheduledFor: {
         lte: new Date(),
@@ -61,7 +62,15 @@ export async function processImmediateEmailSchedules(leadId: string) {
     },
   });
 
-  await Promise.all(schedules.map((schedule) => sendEmailSchedule(schedule)));
+  await Promise.all(
+    schedules.map((schedule) => {
+      if (schedule.channel === MessageChannel.WHATSAPP) {
+        return sendWhatsappSchedule(schedule);
+      }
+
+      return sendEmailSchedule(schedule);
+    }),
+  );
 }
 
 async function sendEmailSchedule(schedule: TemplateWithLead) {
@@ -78,7 +87,7 @@ async function sendEmailSchedule(schedule: TemplateWithLead) {
       throw new Error("Mensagem sem assunto de e-mail.");
     }
 
-    const salesContactUrl = await getSalesContactUrl(settings);
+    const salesContactUrl = await getSalesContactUrl(settings.fromEmail);
     const subject = renderMessageTemplate(schedule.template.subject, schedule.lead, { salesContactUrl });
     const renderedBody = renderMessageTemplate(schedule.template.body, schedule.lead, { salesContactUrl });
     const text = replaceSalesContactLinks(renderedBody, salesContactUrl);
@@ -140,6 +149,63 @@ async function sendEmailSchedule(schedule: TemplateWithLead) {
   }
 }
 
+async function sendWhatsappSchedule(schedule: TemplateWithLead) {
+  const prisma = getPrisma();
+
+  try {
+    const salesContactUrl = await getSalesContactUrl();
+    const renderedBody = renderMessageTemplate(schedule.template.body, schedule.lead, { salesContactUrl });
+    const text = stripRichContent(replaceSalesContactLinks(renderedBody, salesContactUrl));
+    const result = await sendEvolutionTextMessage({
+      number: schedule.lead.phone,
+      text,
+    });
+
+    await prisma.$transaction([
+      prisma.messageLog.create({
+        data: {
+          leadId: schedule.lead.id,
+          templateId: schedule.template.id,
+          channel: MessageChannel.WHATSAPP,
+          status: DeliveryStatus.SENT,
+          provider: "evolution",
+          providerId: result?.key?.id,
+        },
+      }),
+      prisma.messageSchedule.update({
+        where: { id: schedule.id },
+        data: {
+          status: DeliveryStatus.SENT,
+          sentAt: new Date(),
+          errorMessage: null,
+        },
+      }),
+    ]);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Falha desconhecida ao enviar WhatsApp.";
+
+    await prisma.$transaction([
+      prisma.messageLog.create({
+        data: {
+          leadId: schedule.lead.id,
+          templateId: schedule.template.id,
+          channel: MessageChannel.WHATSAPP,
+          status: DeliveryStatus.FAILED,
+          provider: "evolution",
+          errorMessage,
+        },
+      }),
+      prisma.messageSchedule.update({
+        where: { id: schedule.id },
+        data: {
+          status: DeliveryStatus.FAILED,
+          errorMessage,
+        },
+      }),
+    ]);
+  }
+}
+
 async function getResendSettings(): Promise<ResendSettings | null> {
   const prisma = getPrisma();
   const settings = await prisma.integrationSettings.findFirst({
@@ -165,12 +231,12 @@ function formatFrom(settings: ResendSettings) {
   return `${settings.fromName} <${settings.fromEmail}>`;
 }
 
-async function getSalesContactUrl(settings: ResendSettings) {
+async function getSalesContactUrl(fromEmail?: string) {
   const landingSettings = await getLandingSettings();
   return (
     buildSalesContactUrl(landingSettings) ||
     process.env.SALES_TEAM_CONTACT_URL ||
-    `mailto:${settings.fromEmail}?subject=${encodeURIComponent("Quero falar com a equipe de corretores")}`
+    (fromEmail ? `mailto:${fromEmail}?subject=${encodeURIComponent("Quero falar com a equipe de corretores")}` : "")
   );
 }
 
@@ -182,4 +248,26 @@ function replaceSalesContactLinks(content: string, salesContactUrl: string) {
   return content
     .replace(/https:\/\/wa\.me\/\d+(?:\?[^\s)\]]*)?/g, salesContactUrl)
     .replace(/https:\/\/api\.whatsapp\.com\/send\?phone=\d+(?:[^\s)\]]*)?/g, salesContactUrl);
+}
+
+function stripRichContent(text: string) {
+  return text
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>|<\/div>|<\/li>/gi, "\n")
+    .replace(/<li[^>]*>/gi, "- ")
+    .replace(/<a[^>]*href=["']([^"']+)["'][^>]*>(.*?)<\/a>/gi, "$2: $1")
+    .replace(/<img[^>]*alt=["']([^"']*)["'][^>]*>/gi, "Imagem: $1")
+    .replace(/<[^>]+>/g, "")
+    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, "Imagem: $1")
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1: $2")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/\*([^*]+)\*/g, "$1")
+    .replace(/^#{1,2}\s+/gm, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }

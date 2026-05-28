@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { MessageTrigger } from "@prisma/client";
 import { LANDING_SETTINGS_KEY } from "@/lib/landing";
-import { expandTemplateChannels, processImmediateEmailSchedules } from "@/lib/message-delivery";
+import { expandTemplateChannels, processImmediateSchedules } from "@/lib/message-delivery";
 import { getPrisma } from "@/lib/prisma";
 import { leadSchema, normalizePhone } from "@/lib/validators";
 
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     },
   });
 
-  await processImmediateEmailSchedules(lead.id);
+  await processImmediateSchedules(lead.id);
 
   return NextResponse.json({ id: lead.id }, { status: 201 });
 }

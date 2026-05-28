@@ -66,9 +66,9 @@ export function normalizeIntegrationSettings(settings: Partial<AdminIntegrationS
 
 export async function getEvolutionRuntimeSettings() {
   const settings = await getIntegrationSettings();
-  const apiUrl = trimTrailingSlash(process.env.EVOLUTION_API_URL || settings.evolutionApiUrl);
-  const apiKey = process.env.EVOLUTION_API_KEY || settings.evolutionApiKey;
-  const instanceName = process.env.EVOLUTION_INSTANCE_NAME || settings.evolutionInstanceName;
+  const apiUrl = trimTrailingSlash(process.env.EVOLUTION_API_URL || process.env.EVO_API_URL || settings.evolutionApiUrl);
+  const apiKey = process.env.EVOLUTION_API_KEY || process.env.EVO_API_KEY || settings.evolutionApiKey;
+  const instanceName = process.env.EVOLUTION_INSTANCE_NAME || process.env.EVO_INSTANCE_NAME || settings.evolutionInstanceName;
 
   if (!apiUrl || !apiKey || !instanceName) {
     return null;
