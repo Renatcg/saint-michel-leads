@@ -91,7 +91,7 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
     : [];
 
   return (
-    <AdminShell>
+    <AdminShell fullBleed>
       <AdminWhatsappChat
         key={selectedLeadId}
         canChat={canChat}

@@ -13,7 +13,7 @@ const navItems = [
   { href: "/admin/integrations", label: "Integrações" },
 ];
 
-export async function AdminShell({ children }: { children: React.ReactNode }) {
+export async function AdminShell({ children, fullBleed = false }: { children: React.ReactNode; fullBleed?: boolean }) {
   const user = await getCurrentUser();
 
   if (!user) {
@@ -38,7 +38,12 @@ export async function AdminShell({ children }: { children: React.ReactNode }) {
           </nav>
         </div>
       </header>
-      <main className="mx-auto max-w-7xl px-6 py-8">{children}</main>
+      <main
+        className="mx-auto max-w-7xl px-6 py-8 data-[full-bleed=true]:max-w-none data-[full-bleed=true]:px-3 data-[full-bleed=true]:py-3"
+        data-full-bleed={fullBleed}
+      >
+        {children}
+      </main>
     </div>
   );
 }

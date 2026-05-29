@@ -194,21 +194,29 @@ export function AdminWhatsappChat({
   }
 
   return (
-    <div className="grid h-[calc(100vh-150px)] min-h-[640px] overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm lg:grid-cols-[360px_1fr]">
+    <div className="grid h-[calc(100vh-106px)] min-h-[520px] overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm lg:grid-cols-[360px_1fr]">
       <aside className="flex min-h-0 flex-col border-b border-black/10 bg-white lg:border-b-0 lg:border-r">
         <div className="border-b border-black/10 p-4">
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center justify-between gap-3">
             <div>
               <h1 className="text-2xl font-semibold">Chat</h1>
-              <p className="mt-1 text-sm text-neutral-600">Conversas enviadas pelo WhatsApp da Evo API.</p>
             </div>
             <button
-              className="rounded-md border border-black/15 px-3 py-2 text-xs font-semibold text-neutral-700 disabled:opacity-60"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-black/15 text-lg text-neutral-700 hover:bg-neutral-100 disabled:opacity-60"
               type="button"
               disabled={syncing}
               onClick={syncAllHistory}
+              title="Atualizar histórico"
+              aria-label="Atualizar histórico"
             >
-              {syncing ? "Atualizando..." : "Atualizar histórico"}
+              {syncing ? (
+                "..."
+              ) : (
+                <svg aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path d="M20 11a8 8 0 0 0-14.9-4M4 5v5h5" />
+                  <path d="M4 13a8 8 0 0 0 14.9 4M20 19v-5h-5" />
+                </svg>
+              )}
             </button>
           </div>
         </div>
@@ -257,7 +265,8 @@ export function AdminWhatsappChat({
             </header>
 
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-5">
-              <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col justify-end gap-3">
+              <div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-3">
+                <div className="mt-auto" />
                 {messages.length === 0 ? (
                   <p className="mx-auto rounded-lg bg-white/80 px-4 py-2 text-sm text-neutral-600">
                     Nenhuma mensagem enviada para este lead ainda.
