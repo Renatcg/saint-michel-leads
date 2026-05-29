@@ -26,7 +26,7 @@ type RouteContext = {
 };
 
 export async function POST(request: Request, context: RouteContext) {
-  const { response } = await requireAdminUser(["ADMIN", "MANAGER"]);
+  const { response } = await requireAdminUser();
 
   if (response) {
     return response;
@@ -77,6 +77,8 @@ export async function POST(request: Request, context: RouteContext) {
         attachmentUrl: parsed.data.attachment?.url,
         attachmentName: parsed.data.attachment?.name,
         attachmentType: parsed.data.attachment?.type,
+        direction: "OUTBOUND",
+        readAt: new Date(),
         provider: "evolution-manual",
         providerId: typeof result?.key?.id === "string" ? result.key.id : null,
       } as never,
@@ -99,6 +101,8 @@ export async function POST(request: Request, context: RouteContext) {
         attachmentUrl: parsed.data.attachment?.url,
         attachmentName: parsed.data.attachment?.name,
         attachmentType: parsed.data.attachment?.type,
+        direction: "OUTBOUND",
+        readAt: new Date(),
         provider: "evolution-manual",
         errorMessage,
       } as never,

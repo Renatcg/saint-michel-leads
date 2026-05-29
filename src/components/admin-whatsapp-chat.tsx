@@ -13,6 +13,7 @@ type ChatLead = {
   createdAt: string;
   lastMessageAt: string | null;
   lastMessage: string;
+  unreadCount: number;
 };
 
 type ChatMessage = {
@@ -25,6 +26,8 @@ type ChatMessage = {
   errorMessage: string | null;
   provider: string | null;
   providerId: string | null;
+  direction: string;
+  readAt: string | null;
   createdAt: string;
 };
 
@@ -45,6 +48,7 @@ export function AdminWhatsappChat({
   initialMessages: ChatMessage[];
   canChat: boolean;
 }) {
+  const [threads, setThreads] = useState(leads);
   const [messages, setMessages] = useState(initialMessages);
   const [text, setText] = useState("");
   const [attachment, setAttachment] = useState<AttachmentDraft | null>(null);
@@ -54,11 +58,37 @@ export function AdminWhatsappChat({
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const selectedLead = useMemo(() => leads.find((lead) => lead.id === selectedLeadId) ?? leads[0] ?? null, [leads, selectedLeadId]);
+  const selectedLead = useMemo(() => threads.find((lead) => lead.id === selectedLeadId) ?? threads[0] ?? null, [threads, selectedLeadId]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, selectedLeadId]);
+
+  useEffect(() => {
+    const refresh = async () => {
+      if (!selectedLead) {
+        return;
+      }
+
+      const [chatResponse, threadsResponse] = await Promise.all([
+        fetch(`/api/admin/chat?leadId=${selectedLead.id}`, { cache: "no-store" }),
+        fetch("/api/admin/chat/threads", { cache: "no-store" }),
+      ]);
+      const chatData = await chatResponse.json().catch(() => null);
+      const threadsData = await threadsResponse.json().catch(() => null);
+
+      if (chatResponse.ok && Array.isArray(chatData?.messages)) {
+        setMessages(chatData.messages);
+      }
+
+      if (threadsResponse.ok && Array.isArray(threadsData?.leads)) {
+        setThreads(threadsData.leads);
+      }
+    };
+
+    const interval = window.setInterval(refresh, 8000);
+    return () => window.clearInterval(interval);
+  }, [selectedLead]);
 
   async function handleUpload(file: File | undefined) {
     if (!file) {
@@ -116,7 +146,9 @@ export function AdminWhatsappChat({
     }
 
     const refreshed = await fetch(`/api/admin/chat?leadId=${selectedLead.id}`).then((result) => result.json());
+    const refreshedThreads = await fetch("/api/admin/chat/threads").then((result) => result.json());
     setMessages(refreshed.messages ?? []);
+    setThreads(refreshedThreads.leads ?? threads);
     setText("");
     setAttachment(null);
     setSending(false);
@@ -130,7 +162,7 @@ export function AdminWhatsappChat({
           <p className="mt-1 text-sm text-neutral-600">Conversas enviadas pelo WhatsApp da Evo API.</p>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
-          {leads.map((lead) => (
+          {threads.map((lead) => (
             <Link
               className={`flex gap-3 border-b border-black/5 px-4 py-4 hover:bg-neutral-50 ${
                 lead.id === selectedLead?.id ? "bg-[#f0f2f5]" : ""
@@ -143,10 +175,17 @@ export function AdminWhatsappChat({
               </span>
               <span className="min-w-0 flex-1">
                 <span className="flex items-center justify-between gap-3">
-                  <span className="truncate font-semibold text-neutral-900">{lead.name}</span>
+                  <span className={`truncate text-neutral-900 ${lead.unreadCount > 0 ? "font-bold" : "font-semibold"}`}>{lead.name}</span>
                   <span className="shrink-0 text-xs text-neutral-500">{formatTime(lead.lastMessageAt)}</span>
                 </span>
-                <span className="mt-1 block truncate text-sm text-neutral-600">{lead.lastMessage || lead.phone}</span>
+                <span className={`mt-1 block truncate text-sm ${lead.unreadCount > 0 ? "font-bold text-neutral-900" : "text-neutral-600"}`}>
+                  {lead.lastMessage || lead.phone}
+                </span>
+                {lead.unreadCount > 0 ? (
+                  <span className="mt-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#25d366] px-1.5 text-xs font-bold text-white">
+                    {lead.unreadCount}
+                  </span>
+                ) : null}
               </span>
             </Link>
           ))}
@@ -175,13 +214,17 @@ export function AdminWhatsappChat({
                 ) : null}
 
                 {messages.map((message) => (
-                  <div className="flex justify-end" key={message.id}>
-                    <div className="max-w-[78%] rounded-lg bg-[#d9fdd3] px-3 py-2 text-sm shadow-sm">
+                  <div className={message.direction === "INBOUND" ? "flex justify-start" : "flex justify-end"} key={message.id}>
+                    <div
+                      className={`max-w-[78%] rounded-lg px-3 py-2 text-sm shadow-sm ${
+                        message.direction === "INBOUND" ? "bg-white" : "bg-[#d9fdd3]"
+                      }`}
+                    >
                       {message.attachmentUrl ? <AttachmentPreview message={message} /> : null}
                       {message.content ? <p className="whitespace-pre-wrap break-words">{message.content}</p> : null}
                       <div className="mt-1 flex justify-end gap-2 text-[11px] text-neutral-500">
                         <span>{formatTime(message.createdAt)}</span>
-                        <span>{message.status === "FAILED" ? "falhou" : "enviado"}</span>
+                        <span>{message.direction === "INBOUND" ? "recebido" : message.status === "FAILED" ? "falhou" : "enviado"}</span>
                       </div>
                       {message.errorMessage ? <p className="mt-1 text-xs text-red-700">{message.errorMessage}</p> : null}
                     </div>

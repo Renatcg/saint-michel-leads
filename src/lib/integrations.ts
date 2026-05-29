@@ -111,14 +111,16 @@ export async function sendEvolutionTextMessage({ number, text }: { number: strin
     throw new Error("Evolution API não configurada. Verifique EVOLUTION_API_URL, EVOLUTION_API_KEY e EVOLUTION_INSTANCE_NAME.");
   }
 
-  const response = await fetch(`${settings.apiUrl}/message/sendText/${encodeURIComponent(settings.instanceName)}`, {
+  const endpoint = `${settings.apiUrl}/message/sendText/${encodeURIComponent(settings.instanceName)}`;
+  const normalizedNumber = normalizeWhatsappNumber(number);
+  const response = await fetch(endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       apikey: settings.apiKey,
     },
     body: JSON.stringify({
-      number: normalizeWhatsappNumber(number),
+      number: normalizedNumber,
       text,
       linkPreview: false,
     }),
@@ -128,7 +130,53 @@ export async function sendEvolutionTextMessage({ number, text }: { number: strin
 
   if (!response.ok) {
     const message = data?.message || data?.error || `Evolution API retornou status ${response.status}.`;
-    throw new Error(Array.isArray(message) ? message.join(", ") : String(message));
+
+    if (isInvalidEvolutionInput(message)) {
+      return sendEvolutionLegacyTextMessage({
+        endpoint,
+        apiKey: settings.apiKey,
+        number: normalizedNumber,
+        text,
+      });
+    }
+
+    throw new Error(formatEvolutionError(message));
+  }
+
+  return data;
+}
+
+async function sendEvolutionLegacyTextMessage({
+  endpoint,
+  apiKey,
+  number,
+  text,
+}: {
+  endpoint: string;
+  apiKey: string;
+  number: string;
+  text: string;
+}) {
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: apiKey,
+    },
+    body: JSON.stringify({
+      number,
+      textMessage: { text },
+      options: {
+        linkPreview: false,
+      },
+    }),
+  });
+
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const message = data?.message || data?.error || `Evolution API retornou status ${response.status}.`;
+    throw new Error(formatEvolutionError(message));
   }
 
   return data;
@@ -173,10 +221,27 @@ export async function sendEvolutionMediaMessage({
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw new Error(data?.message ?? data?.error ?? "Evolution API recusou o envio de mídia.");
+    throw new Error(formatEvolutionError(data?.message ?? data?.error ?? "Evolution API recusou o envio de mídia."));
   }
 
   return data;
+}
+
+function isInvalidEvolutionInput(message: unknown) {
+  return formatEvolutionError(message).toLowerCase().includes("invalid input");
+}
+
+function formatEvolutionError(message: unknown): string {
+  if (Array.isArray(message)) {
+    return message.map((item: unknown) => formatEvolutionError(item)).join(", ");
+  }
+
+  if (message && typeof message === "object") {
+    const record = message as Record<string, unknown>;
+    return String(record.message || record.error || JSON.stringify(record));
+  }
+
+  return String(message || "Erro desconhecido da Evolution API.");
 }
 
 function getEvolutionMediaType(mimeType: string) {

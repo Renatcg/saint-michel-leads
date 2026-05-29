@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { AdminShell } from "@/components/admin-shell";
 import { AdminWhatsappChat } from "@/components/admin-whatsapp-chat";
-import { canEditLeads, getCurrentUser } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
 import { getPrisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -25,6 +25,8 @@ type ChatMessageRow = {
   errorMessage: string | null;
   provider: string | null;
   providerId: string | null;
+  direction: string;
+  readAt: Date | null;
   createdAt: Date;
 };
 
@@ -33,6 +35,7 @@ type LastMessageRow = {
   content: string | null;
   attachmentName: string | null;
   createdAt: Date;
+  unreadCount: bigint;
 };
 
 export default async function ChatPage({ searchParams }: ChatPageProps) {
@@ -40,7 +43,7 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
   const requestedLeadId = getParam(params, "leadId") ?? null;
   const prisma = getPrisma();
   const currentUser = await getCurrentUser();
-  const canChat = currentUser ? canEditLeads(currentUser.role) : false;
+  const canChat = Boolean(currentUser);
 
   const leads = await prisma.lead.findMany({
     orderBy: { updatedAt: "desc" },
@@ -55,7 +58,8 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
             "leadId",
             "content",
             "attachmentName",
-            "createdAt"
+            "createdAt",
+            COUNT(*) FILTER (WHERE "direction" = 'INBOUND' AND "readAt" IS NULL) OVER (PARTITION BY "leadId") AS "unreadCount"
           FROM "MessageLog"
           WHERE "channel" = 'WHATSAPP'
             AND "leadId" IN (${Prisma.join(leads.map((lead) => lead.id))})
@@ -76,6 +80,8 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
           "errorMessage",
           "provider",
           "providerId",
+          "direction",
+          "readAt",
           "createdAt"
         FROM "MessageLog"
         WHERE "leadId" = ${selectedLeadId}
@@ -93,6 +99,7 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
         initialMessages={messages.map((message) => ({
           ...message,
           createdAt: message.createdAt.toISOString(),
+          readAt: message.readAt?.toISOString() ?? null,
         }))}
         leads={leads.map((lead) => {
           const lastLog = lastMessagesByLead.get(lead.id);
@@ -106,6 +113,7 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
             createdAt: lead.createdAt.toISOString(),
             lastMessageAt: lastLog?.createdAt.toISOString() ?? null,
             lastMessage: lastLog?.content || (lastLog?.attachmentName ? `Anexo: ${lastLog.attachmentName}` : ""),
+            unreadCount: Number(lastLog?.unreadCount ?? 0),
           };
         })}
       />

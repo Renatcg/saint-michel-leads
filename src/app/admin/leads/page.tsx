@@ -23,6 +23,7 @@ export default async function LeadsPage({ searchParams }: LeadsPageProps) {
   const prisma = getPrisma();
   const currentUser = await getCurrentUser();
   const canEdit = currentUser ? canEditLeads(currentUser.role) : false;
+  const canChat = Boolean(currentUser);
 
   const where: Prisma.LeadWhereInput = {};
 
@@ -100,6 +101,7 @@ export default async function LeadsPage({ searchParams }: LeadsPageProps) {
         </form>
 
         <AdminLeadsTable
+          canChat={canChat}
           canEdit={canEdit}
           initialLeads={leads.map((lead) => ({
             id: lead.id,

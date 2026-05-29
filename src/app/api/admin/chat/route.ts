@@ -12,6 +12,8 @@ type ChatMessageRow = {
   errorMessage: string | null;
   provider: string | null;
   providerId: string | null;
+  direction: string;
+  readAt: Date | null;
   createdAt: Date;
 };
 
@@ -57,11 +59,22 @@ export async function GET(request: Request) {
       "errorMessage",
       "provider",
       "providerId",
+      "direction",
+      "readAt",
       "createdAt"
     FROM "MessageLog"
     WHERE "leadId" = ${leadId}
       AND "channel" = 'WHATSAPP'
     ORDER BY "createdAt" ASC
+  `;
+
+  await prisma.$executeRaw`
+    UPDATE "MessageLog"
+    SET "readAt" = NOW()
+    WHERE "leadId" = ${leadId}
+      AND "channel" = 'WHATSAPP'
+      AND "direction" = 'INBOUND'
+      AND "readAt" IS NULL
   `;
 
   return NextResponse.json({
@@ -72,6 +85,7 @@ export async function GET(request: Request) {
     messages: messages.map((message) => ({
       ...message,
       createdAt: message.createdAt.toISOString(),
+      readAt: message.readAt?.toISOString() ?? null,
     })),
   });
 }

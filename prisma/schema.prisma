@@ -117,10 +117,15 @@ model MessageLog {
   attachmentUrl String?
   attachmentName String?
   attachmentType String?
+  direction    String         @default("OUTBOUND")
+  readAt       DateTime?
   provider     String?
   providerId   String?
   errorMessage String?
   createdAt    DateTime       @default(now())
   lead          Lead           @relation(fields: [leadId], references: [id], onDelete: Cascade)
   template      MessageTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  @@index([leadId, channel, createdAt])
+  @@index([leadId, direction, readAt])
 }
