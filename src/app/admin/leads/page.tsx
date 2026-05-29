@@ -58,7 +58,9 @@ export default async function LeadsPage({ searchParams }: LeadsPageProps) {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="text-3xl font-semibold">Leads</h1>
-            <p className="mt-2 text-neutral-600">Busque, filtre e atualize os cadastros recebidos pela landing page.</p>
+            <p className="mt-2 text-neutral-600">
+              Busque, filtre e acompanhe os cadastros recebidos pela landing page.
+            </p>
           </div>
         </div>
 
