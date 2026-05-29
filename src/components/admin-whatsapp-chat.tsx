@@ -54,6 +54,7 @@ export function AdminWhatsappChat({
   const [attachment, setAttachment] = useState<AttachmentDraft | null>(null);
   const [uploading, setUploading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [notice, setNotice] = useState("");
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -154,12 +155,62 @@ export function AdminWhatsappChat({
     setSending(false);
   }
 
+  async function syncAllHistory() {
+    if (!selectedLead) {
+      return;
+    }
+
+    setSyncing(true);
+    setNotice("");
+
+    const response = await fetch("/api/admin/chat/sync", {
+      method: "POST",
+    });
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => null);
+      setNotice(data?.error ?? "Não foi possível atualizar o histórico.");
+      setSyncing(false);
+      return;
+    }
+
+    const [chatResponse, threadsResponse] = await Promise.all([
+      fetch(`/api/admin/chat?leadId=${selectedLead.id}`, { cache: "no-store" }),
+      fetch("/api/admin/chat/threads", { cache: "no-store" }),
+    ]);
+    const chatData = await chatResponse.json().catch(() => null);
+    const threadsData = await threadsResponse.json().catch(() => null);
+
+    if (chatResponse.ok && Array.isArray(chatData?.messages)) {
+      setMessages(chatData.messages);
+    }
+
+    if (threadsResponse.ok && Array.isArray(threadsData?.leads)) {
+      setThreads(threadsData.leads);
+    }
+
+    setNotice("Histórico atualizado.");
+    setSyncing(false);
+  }
+
   return (
     <div className="grid h-[calc(100vh-150px)] min-h-[640px] overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm lg:grid-cols-[360px_1fr]">
       <aside className="flex min-h-0 flex-col border-b border-black/10 bg-white lg:border-b-0 lg:border-r">
         <div className="border-b border-black/10 p-4">
-          <h1 className="text-2xl font-semibold">Chat</h1>
-          <p className="mt-1 text-sm text-neutral-600">Conversas enviadas pelo WhatsApp da Evo API.</p>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h1 className="text-2xl font-semibold">Chat</h1>
+              <p className="mt-1 text-sm text-neutral-600">Conversas enviadas pelo WhatsApp da Evo API.</p>
+            </div>
+            <button
+              className="rounded-md border border-black/15 px-3 py-2 text-xs font-semibold text-neutral-700 disabled:opacity-60"
+              type="button"
+              disabled={syncing}
+              onClick={syncAllHistory}
+            >
+              {syncing ? "Atualizando..." : "Atualizar histórico"}
+            </button>
+          </div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
           {threads.map((lead) => (
@@ -175,7 +226,7 @@ export function AdminWhatsappChat({
               </span>
               <span className="min-w-0 flex-1">
                 <span className="flex items-center justify-between gap-3">
-                  <span className={`truncate text-neutral-900 ${lead.unreadCount > 0 ? "font-bold" : "font-semibold"}`}>{lead.name}</span>
+                  <span className={`truncate text-neutral-900 ${lead.unreadCount > 0 ? "font-bold" : "font-normal"}`}>{lead.name}</span>
                   <span className="shrink-0 text-xs text-neutral-500">{formatTime(lead.lastMessageAt)}</span>
                 </span>
                 <span className={`mt-1 block truncate text-sm ${lead.unreadCount > 0 ? "font-bold text-neutral-900" : "text-neutral-600"}`}>
@@ -205,8 +256,8 @@ export function AdminWhatsappChat({
               </div>
             </header>
 
-            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5">
-              <div className="mx-auto flex max-w-4xl flex-col gap-3">
+            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-5">
+              <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col justify-end gap-3">
                 {messages.length === 0 ? (
                   <p className="mx-auto rounded-lg bg-white/80 px-4 py-2 text-sm text-neutral-600">
                     Nenhuma mensagem enviada para este lead ainda.

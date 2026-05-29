@@ -81,6 +81,17 @@ export async function syncEvolutionHistoryForLead(lead: Pick<Lead, "id" | "phone
   }
 }
 
+export async function syncEvolutionHistoryForLeads(leads: Pick<Lead, "id" | "phone">[]) {
+  let synced = 0;
+
+  for (const lead of leads) {
+    await syncEvolutionHistoryForLead(lead);
+    synced += 1;
+  }
+
+  return synced;
+}
+
 function extractEvolutionMessages(payload: unknown): EvolutionHistoryMessage[] {
   const records = flattenPotentialMessages(payload);
 
