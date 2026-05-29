@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminUser } from "@/lib/admin-auth";
+import { syncEvolutionHistoryForLead } from "@/lib/evolution-history";
 import { getPrisma } from "@/lib/prisma";
 
 type ChatMessageRow = {
@@ -47,6 +48,8 @@ export async function GET(request: Request) {
   if (!lead) {
     return NextResponse.json({ error: "Lead não encontrado." }, { status: 404 });
   }
+
+  await syncEvolutionHistoryForLead(lead);
 
   const messages = await prisma.$queryRaw<ChatMessageRow[]>`
     SELECT

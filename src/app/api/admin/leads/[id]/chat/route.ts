@@ -13,7 +13,7 @@ const chatMessageSchema = z.object({
       name: z.string().trim().min(1).max(180),
       type: z.string().trim().min(1).max(120),
     })
-    .optional(),
+    .nullish(),
 }).refine((data) => data.text.length >= 2 || data.attachment, {
   message: "Escreva uma mensagem ou anexe um arquivo antes de enviar.",
   path: ["text"],

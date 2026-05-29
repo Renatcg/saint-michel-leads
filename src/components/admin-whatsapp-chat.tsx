@@ -134,7 +134,7 @@ export function AdminWhatsappChat({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         text: text.trim(),
-        attachment,
+        ...(attachment ? { attachment } : {}),
       }),
     });
 
