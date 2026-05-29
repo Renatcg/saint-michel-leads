@@ -134,6 +134,63 @@ export async function sendEvolutionTextMessage({ number, text }: { number: strin
   return data;
 }
 
+export async function sendEvolutionMediaMessage({
+  number,
+  caption,
+  mediaUrl,
+  fileName,
+  mimeType,
+}: {
+  number: string;
+  caption?: string;
+  mediaUrl: string;
+  fileName: string;
+  mimeType: string;
+}) {
+  const settings = await getEvolutionRuntimeSettings();
+
+  if (!settings) {
+    throw new Error("Evolution API não configurada. Cadastre as variáveis na Vercel ou na aba Integrações.");
+  }
+
+  const response = await fetch(`${settings.apiUrl}/message/sendMedia/${encodeURIComponent(settings.instanceName)}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: settings.apiKey,
+    },
+    body: JSON.stringify({
+      number: normalizeWhatsappNumber(number),
+      mediatype: getEvolutionMediaType(mimeType),
+      mimetype: mimeType,
+      caption: caption || "",
+      media: mediaUrl,
+      fileName,
+      linkPreview: false,
+    }),
+  });
+
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(data?.message ?? data?.error ?? "Evolution API recusou o envio de mídia.");
+  }
+
+  return data;
+}
+
+function getEvolutionMediaType(mimeType: string) {
+  if (mimeType.startsWith("image/")) {
+    return "image";
+  }
+
+  if (mimeType.startsWith("video/")) {
+    return "video";
+  }
+
+  return "document";
+}
+
 export function normalizeWhatsappNumber(phone: string) {
   const digits = phone.replace(/\D/g, "");
 

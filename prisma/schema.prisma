@@ -113,6 +113,10 @@ model MessageLog {
   templateId   String?
   channel      MessageChannel
   status       DeliveryStatus
+  content      String?
+  attachmentUrl String?
+  attachmentName String?
+  attachmentType String?
   provider     String?
   providerId   String?
   errorMessage String?

@@ -2,11 +2,21 @@ import { DeliveryStatus, MessageChannel } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdminUser } from "@/lib/admin-auth";
-import { sendEvolutionTextMessage } from "@/lib/integrations";
+import { sendEvolutionMediaMessage, sendEvolutionTextMessage } from "@/lib/integrations";
 import { getPrisma } from "@/lib/prisma";
 
 const chatMessageSchema = z.object({
-  text: z.string().trim().min(2, "Escreva uma mensagem antes de enviar.").max(2000, "Mensagem muito longa."),
+  text: z.string().trim().max(2000, "Mensagem muito longa.").optional().default(""),
+  attachment: z
+    .object({
+      url: z.string().url(),
+      name: z.string().trim().min(1).max(180),
+      type: z.string().trim().min(1).max(120),
+    })
+    .optional(),
+}).refine((data) => data.text.length >= 2 || data.attachment, {
+  message: "Escreva uma mensagem ou anexe um arquivo antes de enviar.",
+  path: ["text"],
 });
 
 type RouteContext = {
@@ -45,19 +55,31 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   try {
-    const result = await sendEvolutionTextMessage({
-      number: lead.phone,
-      text: parsed.data.text,
-    });
+    const result = parsed.data.attachment
+      ? await sendEvolutionMediaMessage({
+          number: lead.phone,
+          caption: parsed.data.text,
+          mediaUrl: parsed.data.attachment.url,
+          fileName: parsed.data.attachment.name,
+          mimeType: parsed.data.attachment.type,
+        })
+      : await sendEvolutionTextMessage({
+          number: lead.phone,
+          text: parsed.data.text,
+        });
 
     await prisma.messageLog.create({
       data: {
         leadId: lead.id,
         channel: MessageChannel.WHATSAPP,
         status: DeliveryStatus.SENT,
+        content: parsed.data.text,
+        attachmentUrl: parsed.data.attachment?.url,
+        attachmentName: parsed.data.attachment?.name,
+        attachmentType: parsed.data.attachment?.type,
         provider: "evolution-manual",
         providerId: typeof result?.key?.id === "string" ? result.key.id : null,
-      },
+      } as never,
     });
 
     return NextResponse.json({
@@ -73,9 +95,13 @@ export async function POST(request: Request, context: RouteContext) {
         leadId: lead.id,
         channel: MessageChannel.WHATSAPP,
         status: DeliveryStatus.FAILED,
+        content: parsed.data.text,
+        attachmentUrl: parsed.data.attachment?.url,
+        attachmentName: parsed.data.attachment?.name,
+        attachmentType: parsed.data.attachment?.type,
         provider: "evolution-manual",
         errorMessage,
-      },
+      } as never,
     });
 
     return NextResponse.json({ error: errorMessage }, { status: 502 });

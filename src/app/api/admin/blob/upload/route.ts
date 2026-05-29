@@ -16,14 +16,30 @@ export async function POST(request: Request) {
       body,
       request,
       onBeforeGenerateToken: async (pathname) => {
-        if (!pathname.startsWith("landing/") && !pathname.startsWith("logos/") && !pathname.startsWith("success/")) {
+        if (
+          !pathname.startsWith("landing/") &&
+          !pathname.startsWith("logos/") &&
+          !pathname.startsWith("success/") &&
+          !pathname.startsWith("chat/")
+        ) {
           throw new Error("Caminho de upload inválido.");
         }
 
         return {
-          allowedContentTypes: ["video/mp4", "video/webm", "video/quicktime", "image/png", "image/jpeg", "image/webp", "image/svg+xml"],
+          allowedContentTypes: [
+            "video/mp4",
+            "video/webm",
+            "video/quicktime",
+            "image/png",
+            "image/jpeg",
+            "image/webp",
+            "image/svg+xml",
+            "application/pdf",
+            "application/msword",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          ],
           maximumSizeInBytes: 20 * 1024 * 1024,
-          tokenPayload: JSON.stringify({ area: "landing" }),
+          tokenPayload: JSON.stringify({ area: pathname.startsWith("chat/") ? "chat" : "landing" }),
         };
       },
       onUploadCompleted: async () => {

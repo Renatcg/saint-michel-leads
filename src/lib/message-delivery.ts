@@ -168,9 +168,10 @@ async function sendWhatsappSchedule(schedule: TemplateWithLead) {
           templateId: schedule.template.id,
           channel: MessageChannel.WHATSAPP,
           status: DeliveryStatus.SENT,
+          content: text,
           provider: "evolution",
           providerId: result?.key?.id,
-        },
+        } as never,
       }),
       prisma.messageSchedule.update({
         where: { id: schedule.id },
@@ -191,9 +192,10 @@ async function sendWhatsappSchedule(schedule: TemplateWithLead) {
           templateId: schedule.template.id,
           channel: MessageChannel.WHATSAPP,
           status: DeliveryStatus.FAILED,
+          content: schedule.template.body,
           provider: "evolution",
           errorMessage,
-        },
+        } as never,
       }),
       prisma.messageSchedule.update({
         where: { id: schedule.id },

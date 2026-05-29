@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { leadStatusLabels, leadStatusValues, type LeadStatusValue } from "@/lib/leads";
 
@@ -24,10 +25,6 @@ export function AdminLeadsTable({ initialLeads, canEdit }: { initialLeads: LeadR
   const [draft, setDraft] = useState<Draft | null>(null);
   const [message, setMessage] = useState("");
   const [loadingId, setLoadingId] = useState<string | null>(null);
-  const [chatLead, setChatLead] = useState<LeadRow | null>(null);
-  const [chatText, setChatText] = useState("");
-  const [chatMessage, setChatMessage] = useState("");
-  const [chatLoading, setChatLoading] = useState(false);
 
   function startEditing(lead: LeadRow) {
     setMessage("");
@@ -107,40 +104,6 @@ export function AdminLeadsTable({ initialLeads, canEdit }: { initialLeads: LeadR
 
     setLeads((current) => current.filter((item) => item.id !== id));
     setMessage("Lead excluído.");
-  }
-
-  function openChat(lead: LeadRow) {
-    setChatLead(lead);
-    setChatMessage("");
-    setChatText(`Olá, ${lead.name}. Tudo bem?\n\nAqui é a equipe da Saint Michel Construtora.`);
-  }
-
-  async function sendChatMessage() {
-    if (!chatLead) {
-      return;
-    }
-
-    setChatLoading(true);
-    setChatMessage("");
-
-    const response = await fetch(`/api/admin/leads/${chatLead.id}/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: chatText }),
-    });
-
-    setChatLoading(false);
-
-    if (!response.ok) {
-      const data = await response.json().catch(() => null);
-      setChatMessage(data?.error ?? "Não foi possível enviar a mensagem.");
-      return;
-    }
-
-    setLeads((current) =>
-      current.map((lead) => (lead.id === chatLead.id ? { ...lead, logsCount: lead.logsCount + 1 } : lead)),
-    );
-    setChatMessage("Mensagem enviada pelo WhatsApp.");
   }
 
   return (
@@ -262,13 +225,12 @@ export function AdminLeadsTable({ initialLeads, canEdit }: { initialLeads: LeadR
                         </div>
                       ) : (
                         <div className="flex flex-wrap gap-2">
-                          <button
+                          <Link
                             className="rounded-md border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700"
-                            type="button"
-                            onClick={() => openChat(lead)}
+                            href={`/admin/chat?leadId=${lead.id}`}
                           >
                             Chat
-                          </button>
+                          </Link>
                           <button
                             className="rounded-md border border-black/15 px-3 py-2 text-xs font-semibold"
                             type="button"
@@ -302,59 +264,6 @@ export function AdminLeadsTable({ initialLeads, canEdit }: { initialLeads: LeadR
           </tbody>
         </table>
       </div>
-
-      {chatLead ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 px-4 py-8">
-          <div className="w-full max-w-xl rounded-lg bg-white p-5 shadow-xl">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-xl font-semibold">Conversar com {chatLead.name}</h2>
-                <p className="mt-1 text-sm text-neutral-600">Envio pelo WhatsApp conectado na Evolution API.</p>
-                <p className="mt-1 text-sm font-medium text-neutral-700">{chatLead.phone}</p>
-              </div>
-              <button
-                className="rounded-md border border-black/15 px-3 py-2 text-sm font-semibold"
-                type="button"
-                onClick={() => setChatLead(null)}
-              >
-                Fechar
-              </button>
-            </div>
-
-            <label className="mt-5 block">
-              <span className="mb-2 block text-sm font-medium text-neutral-700">Mensagem</span>
-              <textarea
-                className="min-h-48 w-full rounded-lg border border-black/15 px-3 py-3 outline-none focus:border-[#98743e]"
-                value={chatText}
-                maxLength={2000}
-                onChange={(event) => setChatText(event.target.value)}
-              />
-            </label>
-
-            {chatMessage ? (
-              <p className="mt-3 rounded-lg bg-neutral-100 px-3 py-2 text-sm text-neutral-700">{chatMessage}</p>
-            ) : null}
-
-            <div className="mt-5 flex flex-wrap justify-end gap-2">
-              <button
-                className="rounded-lg border border-black/15 px-4 py-3 font-semibold text-neutral-700"
-                type="button"
-                onClick={() => setChatLead(null)}
-              >
-                Cancelar
-              </button>
-              <button
-                className="rounded-lg bg-[#98743e] px-4 py-3 font-semibold text-white disabled:opacity-60"
-                type="button"
-                disabled={chatLoading || chatText.trim().length < 2}
-                onClick={sendChatMessage}
-              >
-                {chatLoading ? "Enviando..." : "Enviar WhatsApp"}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }
