@@ -14,10 +14,35 @@ type EvolutionHistoryMessage = {
 };
 
 export async function syncEvolutionHistoryForLead(lead: Pick<Lead, "id" | "phone">) {
+  const messages = await fetchEvolutionHistoryForLead(lead);
+  const prisma = getPrisma();
+
+  for (const message of messages) {
+    if (message.id) {
+      const existing = await prisma.messageLog.findFirst({
+        where: {
+          provider: "evolution-history",
+          providerId: message.id,
+        },
+        select: { id: true },
+      });
+
+      if (existing) {
+        continue;
+      }
+    }
+
+    await prisma.messageLog.create({
+      data: buildMessageLogData(lead.id, message),
+    });
+  }
+}
+
+export async function fetchEvolutionHistoryForLead(lead: Pick<Lead, "id" | "phone">) {
   const settings = await getEvolutionRuntimeSettings();
 
   if (!settings) {
-    return;
+    return [];
   }
 
   const remoteJid = `${normalizeWhatsappNumber(lead.phone)}@s.whatsapp.net`;
@@ -38,47 +63,11 @@ export async function syncEvolutionHistoryForLead(lead: Pick<Lead, "id" | "phone
   });
 
   if (!response.ok) {
-    return;
+    return [];
   }
 
   const payload = await response.json().catch(() => null);
-  const messages = extractEvolutionMessages(payload)
-    .filter((message) => message.remoteJid === remoteJid || !message.remoteJid)
-    .slice(-100);
-  const prisma = getPrisma();
-
-  for (const message of messages) {
-    if (message.id) {
-      const existing = await prisma.messageLog.findFirst({
-        where: {
-          provider: "evolution-history",
-          providerId: message.id,
-        },
-        select: { id: true },
-      });
-
-      if (existing) {
-        continue;
-      }
-    }
-
-    await prisma.messageLog.create({
-      data: {
-        leadId: lead.id,
-        channel: MessageChannel.WHATSAPP,
-        status: DeliveryStatus.SENT,
-        content: message.text,
-        attachmentUrl: message.attachmentUrl,
-        attachmentName: message.attachmentName,
-        attachmentType: message.attachmentType,
-        direction: message.fromMe ? "OUTBOUND" : "INBOUND",
-        readAt: message.fromMe ? message.createdAt : null,
-        provider: "evolution-history",
-        providerId: message.id,
-        createdAt: message.createdAt,
-      } as never,
-    });
-  }
+  return extractEvolutionMessages(payload).filter((message) => message.remoteJid === remoteJid || !message.remoteJid);
 }
 
 export async function syncEvolutionHistoryForLeads(leads: Pick<Lead, "id" | "phone">[]) {
@@ -90,6 +79,61 @@ export async function syncEvolutionHistoryForLeads(leads: Pick<Lead, "id" | "pho
   }
 
   return synced;
+}
+
+export async function replaceEvolutionHistoryForLeads(leads: Pick<Lead, "id" | "phone">[]) {
+  const fetched: Array<{ leadId: string; messages: EvolutionHistoryMessage[] }> = [];
+
+  for (const lead of leads) {
+    fetched.push({
+      leadId: lead.id,
+      messages: await fetchEvolutionHistoryForLead(lead),
+    });
+  }
+
+  const prisma = getPrisma();
+  const total = fetched.reduce((sum, item) => sum + item.messages.length, 0);
+
+  await prisma.$transaction(
+    async (tx) => {
+      await tx.messageLog.deleteMany({
+        where: {
+          channel: MessageChannel.WHATSAPP,
+        },
+      });
+
+      for (const item of fetched) {
+        for (const message of item.messages) {
+          await tx.messageLog.create({
+            data: buildMessageLogData(item.leadId, message),
+          });
+        }
+      }
+    },
+    { timeout: 60000 },
+  );
+
+  return {
+    leads: leads.length,
+    messages: total,
+  };
+}
+
+function buildMessageLogData(leadId: string, message: EvolutionHistoryMessage) {
+  return {
+    leadId,
+    channel: MessageChannel.WHATSAPP,
+    status: DeliveryStatus.SENT,
+    content: message.text,
+    attachmentUrl: message.attachmentUrl,
+    attachmentName: message.attachmentName,
+    attachmentType: message.attachmentType,
+    direction: message.fromMe ? "OUTBOUND" : "INBOUND",
+    readAt: message.createdAt,
+    provider: "evolution-history",
+    providerId: message.id,
+    createdAt: message.createdAt,
+  } as never;
 }
 
 function extractEvolutionMessages(payload: unknown): EvolutionHistoryMessage[] {

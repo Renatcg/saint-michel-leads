@@ -1,8 +1,7 @@
 "use client";
 
 import { upload } from "@vercel/blob/client";
-import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 type ChatLead = {
   id: string;
@@ -49,6 +48,7 @@ export function AdminWhatsappChat({
   canChat: boolean;
 }) {
   const [threads, setThreads] = useState(leads);
+  const [activeLeadId, setActiveLeadId] = useState(selectedLeadId);
   const [messages, setMessages] = useState(initialMessages);
   const [text, setText] = useState("");
   const [attachment, setAttachment] = useState<AttachmentDraft | null>(null);
@@ -59,11 +59,11 @@ export function AdminWhatsappChat({
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const selectedLead = useMemo(() => threads.find((lead) => lead.id === selectedLeadId) ?? threads[0] ?? null, [threads, selectedLeadId]);
+  const selectedLead = useMemo(() => threads.find((lead) => lead.id === activeLeadId) ?? threads[0] ?? null, [threads, activeLeadId]);
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages, selectedLeadId]);
+  useLayoutEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
+  }, [messages, activeLeadId]);
 
   useEffect(() => {
     const refresh = async () => {
@@ -90,6 +90,33 @@ export function AdminWhatsappChat({
     const interval = window.setInterval(refresh, 8000);
     return () => window.clearInterval(interval);
   }, [selectedLead]);
+
+  async function selectLead(leadId: string) {
+    if (leadId === activeLeadId) {
+      return;
+    }
+
+    setActiveLeadId(leadId);
+    setMessages([]);
+    setText("");
+    setAttachment(null);
+    setNotice("");
+    window.history.pushState(null, "", `/admin/chat?leadId=${leadId}`);
+
+    const response = await fetch(`/api/admin/chat?leadId=${leadId}`, { cache: "no-store" });
+    const data = await response.json().catch(() => null);
+
+    if (response.ok && Array.isArray(data?.messages)) {
+      setMessages(data.messages);
+    }
+
+    const threadsResponse = await fetch("/api/admin/chat/threads", { cache: "no-store" });
+    const threadsData = await threadsResponse.json().catch(() => null);
+
+    if (threadsResponse.ok && Array.isArray(threadsData?.leads)) {
+      setThreads(threadsData.leads);
+    }
+  }
 
   async function handleUpload(file: File | undefined) {
     if (!file) {
@@ -165,6 +192,8 @@ export function AdminWhatsappChat({
 
     const response = await fetch("/api/admin/chat/sync", {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reset: true }),
     });
 
     if (!response.ok) {
@@ -189,7 +218,7 @@ export function AdminWhatsappChat({
       setThreads(threadsData.leads);
     }
 
-    setNotice("Histórico atualizado.");
+    setNotice("Histórico reconstruído.");
     setSyncing(false);
   }
 
@@ -222,12 +251,13 @@ export function AdminWhatsappChat({
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
           {threads.map((lead) => (
-            <Link
-              className={`flex gap-3 border-b border-black/5 px-4 py-4 hover:bg-neutral-50 ${
+            <button
+              className={`flex w-full gap-3 border-b border-black/5 px-4 py-4 text-left hover:bg-neutral-50 ${
                 lead.id === selectedLead?.id ? "bg-[#f0f2f5]" : ""
               }`}
-              href={`/admin/chat?leadId=${lead.id}`}
               key={lead.id}
+              type="button"
+              onClick={() => selectLead(lead.id)}
             >
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#d9fdd3] text-sm font-bold text-[#1f7a3a]">
                 {getInitials(lead.name)}
@@ -246,7 +276,7 @@ export function AdminWhatsappChat({
                   </span>
                 ) : null}
               </span>
-            </Link>
+            </button>
           ))}
         </div>
       </aside>
