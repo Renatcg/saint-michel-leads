@@ -55,15 +55,28 @@ export function AdminWhatsappChat({
   const [uploading, setUploading] = useState(false);
   const [sending, setSending] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [loadingMessages, setLoadingMessages] = useState(false);
   const [notice, setNotice] = useState("");
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const textAreaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const selectedLead = useMemo(() => threads.find((lead) => lead.id === activeLeadId) ?? threads[0] ?? null, [threads, activeLeadId]);
 
   useLayoutEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
   }, [messages, activeLeadId]);
+
+  useLayoutEffect(() => {
+    const textArea = textAreaRef.current;
+
+    if (!textArea) {
+      return;
+    }
+
+    textArea.style.height = "44px";
+    textArea.style.height = `${Math.min(textArea.scrollHeight, 76)}px`;
+  }, [text]);
 
   useEffect(() => {
     const refresh = async () => {
@@ -98,6 +111,7 @@ export function AdminWhatsappChat({
 
     setActiveLeadId(leadId);
     setMessages([]);
+    setLoadingMessages(true);
     setText("");
     setAttachment(null);
     setNotice("");
@@ -109,6 +123,7 @@ export function AdminWhatsappChat({
     if (response.ok && Array.isArray(data?.messages)) {
       setMessages(data.messages);
     }
+    setLoadingMessages(false);
 
     const threadsResponse = await fetch("/api/admin/chat/threads", { cache: "no-store" });
     const threadsData = await threadsResponse.json().catch(() => null);
@@ -252,22 +267,22 @@ export function AdminWhatsappChat({
         <div className="min-h-0 flex-1 overflow-y-auto">
           {threads.map((lead) => (
             <button
-              className={`flex w-full gap-3 border-b border-black/5 px-4 py-4 text-left hover:bg-neutral-50 ${
+              className={`flex w-full gap-3 border-b border-black/5 px-3 py-3 text-left hover:bg-neutral-50 ${
                 lead.id === selectedLead?.id ? "bg-[#f0f2f5]" : ""
               }`}
               key={lead.id}
               type="button"
               onClick={() => selectLead(lead.id)}
             >
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#d9fdd3] text-sm font-bold text-[#1f7a3a]">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#d9fdd3] text-xs font-bold text-[#1f7a3a]">
                 {getInitials(lead.name)}
               </span>
               <span className="min-w-0 flex-1">
                 <span className="flex items-center justify-between gap-3">
-                  <span className={`truncate text-neutral-900 ${lead.unreadCount > 0 ? "font-bold" : "font-normal"}`}>{lead.name}</span>
+                  <span className={`truncate text-sm text-neutral-900 ${lead.unreadCount > 0 ? "font-bold" : "font-normal"}`}>{lead.name}</span>
                   <span className="shrink-0 text-xs text-neutral-500">{formatTime(lead.lastMessageAt)}</span>
                 </span>
-                <span className={`mt-1 block truncate text-sm ${lead.unreadCount > 0 ? "font-bold text-neutral-900" : "text-neutral-600"}`}>
+                <span className={`mt-0.5 block truncate text-xs ${lead.unreadCount > 0 ? "font-bold text-neutral-900" : "text-neutral-600"}`}>
                   {lead.lastMessage || lead.phone}
                 </span>
                 {lead.unreadCount > 0 ? (
@@ -297,27 +312,37 @@ export function AdminWhatsappChat({
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-5">
               <div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-3">
                 <div className="mt-auto" />
-                {messages.length === 0 ? (
+                {!loadingMessages && messages.length === 0 ? (
                   <p className="mx-auto rounded-lg bg-white/80 px-4 py-2 text-sm text-neutral-600">
                     Nenhuma mensagem enviada para este lead ainda.
                   </p>
                 ) : null}
 
-                {messages.map((message) => (
-                  <div className={message.direction === "INBOUND" ? "flex justify-start" : "flex justify-end"} key={message.id}>
-                    <div
-                      className={`max-w-[78%] rounded-lg px-3 py-2 text-sm shadow-sm ${
-                        message.direction === "INBOUND" ? "bg-white" : "bg-[#d9fdd3]"
-                      }`}
-                    >
-                      {message.attachmentUrl ? <AttachmentPreview message={message} /> : null}
-                      {message.content ? <p className="whitespace-pre-wrap break-words">{message.content}</p> : null}
-                      <div className="mt-1 flex justify-end gap-2 text-[11px] text-neutral-500">
-                        <span>{formatTime(message.createdAt)}</span>
-                        <span>{message.direction === "INBOUND" ? "recebido" : message.status === "FAILED" ? "falhou" : "enviado"}</span>
-                      </div>
-                      {message.errorMessage ? <p className="mt-1 text-xs text-red-700">{message.errorMessage}</p> : null}
+                {groupMessagesByDay(messages).map((group) => (
+                  <div className="contents" key={group.dayKey}>
+                    <div className="my-2 flex justify-center">
+                      <span className="rounded-lg bg-white/90 px-3 py-1 text-xs font-semibold text-neutral-600 shadow-sm">{group.label}</span>
                     </div>
+                    {group.messages.map((message) => (
+                      <div className={message.direction === "INBOUND" ? "flex justify-start" : "flex justify-end"} key={message.id}>
+                        <div
+                          className={`max-w-[78%] rounded-lg px-3 py-2 text-sm shadow-sm ${
+                            message.direction === "INBOUND" ? "bg-white" : "bg-[#d9fdd3]"
+                          }`}
+                        >
+                          {message.attachmentUrl ? <AttachmentPreview message={message} /> : null}
+                          {message.content ? (
+                            <p className="whitespace-pre-wrap break-words">
+                              <LinkifiedText text={message.content} />{" "}
+                              <span className="inline-block pl-1 text-[11px] text-neutral-500">{formatTime(message.createdAt)}</span>
+                            </p>
+                          ) : (
+                            <span className="inline-block text-[11px] text-neutral-500">{formatTime(message.createdAt)}</span>
+                          )}
+                          {message.errorMessage ? <p className="mt-1 text-xs text-red-700">{message.errorMessage}</p> : null}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 ))}
                 <div ref={bottomRef} />
@@ -352,7 +377,9 @@ export function AdminWhatsappChat({
                   +
                 </button>
                 <textarea
-                  className="max-h-32 min-h-12 flex-1 resize-none rounded-3xl border border-transparent bg-white px-4 py-3 outline-none focus:border-[#98743e]"
+                  ref={textAreaRef}
+                  rows={1}
+                  className="h-11 max-h-[76px] min-h-11 flex-1 resize-none overflow-y-auto rounded-3xl border border-transparent bg-white px-4 py-2.5 outline-none focus:border-[#98743e]"
                   placeholder={canChat ? "Digite uma mensagem" : "Seu acesso é somente leitura"}
                   value={text}
                   disabled={!canChat}
@@ -406,6 +433,77 @@ function AttachmentPreview({ message }: { message: ChatMessage }) {
     <a className="mb-2 block rounded-md bg-white/70 px-3 py-2 font-semibold text-[#1f7a3a]" href={message.attachmentUrl} rel="noreferrer" target="_blank">
       {message.attachmentName ?? "Abrir documento"}
     </a>
+  );
+}
+
+function LinkifiedText({ text }: { text: string }) {
+  const parts = text.split(/(https?:\/\/[^\s]+|www\.[^\s]+)/g);
+
+  return (
+    <>
+      {parts.map((part, index) => {
+        if (!/^(https?:\/\/|www\.)/.test(part)) {
+          return <span key={`${part}-${index}`}>{part}</span>;
+        }
+
+        const href = part.startsWith("http") ? part : `https://${part}`;
+
+        return (
+          <a className="text-blue-700 underline" href={href} key={`${part}-${index}`} rel="noreferrer" target="_blank">
+            {part}
+          </a>
+        );
+      })}
+    </>
+  );
+}
+
+function groupMessagesByDay(messages: ChatMessage[]) {
+  return messages.reduce<Array<{ dayKey: string; label: string; messages: ChatMessage[] }>>((groups, message) => {
+    const date = new Date(message.createdAt);
+    const dayKey = date.toISOString().slice(0, 10);
+    const lastGroup = groups[groups.length - 1];
+
+    if (lastGroup?.dayKey === dayKey) {
+      lastGroup.messages.push(message);
+      return groups;
+    }
+
+    groups.push({
+      dayKey,
+      label: formatDayLabel(date),
+      messages: [message],
+    });
+    return groups;
+  }, []);
+}
+
+function formatDayLabel(date: Date) {
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+
+  if (isSameDay(date, today)) {
+    return "hoje";
+  }
+
+  if (isSameDay(date, yesterday)) {
+    return "ontem";
+  }
+
+  return date.toLocaleDateString("pt-BR", {
+    weekday: "long",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+function isSameDay(left: Date, right: Date) {
+  return (
+    left.getFullYear() === right.getFullYear() &&
+    left.getMonth() === right.getMonth() &&
+    left.getDate() === right.getDate()
   );
 }
 
