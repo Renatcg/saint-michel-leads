@@ -37,6 +37,11 @@ type AttachmentDraft = {
   type: string;
 };
 
+type WindowWithAudioFallback = Window &
+  typeof globalThis & {
+    webkitAudioContext?: typeof AudioContext;
+  };
+
 export function AdminWhatsappChat({
   leads,
   selectedLeadId,
@@ -66,6 +71,9 @@ export function AdminWhatsappChat({
   const textAreaRef = useRef<HTMLTextAreaElement | null>(null);
   const pendingInitialScrollRef = useRef(true);
   const shouldKeepBottomRef = useRef(false);
+  const knownInboundIdsRef = useRef(new Set(initialMessages.filter((message) => message.direction === "INBOUND").map((message) => message.id)));
+  const unreadTotalRef = useRef(sumUnreadMessages(leads));
+  const audioContextRef = useRef<AudioContext | null>(null);
 
   const selectedLead = useMemo(() => threads.find((lead) => lead.id === activeLeadId) ?? threads[0] ?? null, [threads, activeLeadId]);
 
@@ -107,13 +115,26 @@ export function AdminWhatsappChat({
       const chatData = await chatResponse.json().catch(() => null);
       const threadsData = await threadsResponse.json().catch(() => null);
       shouldKeepBottomRef.current = isNearBottom(messagesAreaRef.current);
+      let shouldNotify = false;
 
       if (chatResponse.ok && Array.isArray(chatData?.messages)) {
+        shouldNotify = hasNewInboundMessages(chatData.messages, knownInboundIdsRef.current);
         setMessages(chatData.messages);
       }
 
       if (threadsResponse.ok && Array.isArray(threadsData?.leads)) {
+        const nextUnreadTotal = sumUnreadMessages(threadsData.leads);
+
+        if (nextUnreadTotal > unreadTotalRef.current) {
+          shouldNotify = true;
+        }
+
+        unreadTotalRef.current = nextUnreadTotal;
         setThreads(threadsData.leads);
+      }
+
+      if (shouldNotify) {
+        playNotificationSound(audioContextRef);
       }
     };
 
@@ -140,6 +161,7 @@ export function AdminWhatsappChat({
     const data = await response.json().catch(() => null);
 
     if (response.ok && Array.isArray(data?.messages)) {
+      markKnownInboundMessages(data.messages, knownInboundIdsRef.current);
       setMessages(data.messages);
     }
     setLoadingMessages(false);
@@ -148,6 +170,7 @@ export function AdminWhatsappChat({
     const threadsData = await threadsResponse.json().catch(() => null);
 
     if (threadsResponse.ok && Array.isArray(threadsData?.leads)) {
+      unreadTotalRef.current = sumUnreadMessages(threadsData.leads);
       setThreads(threadsData.leads);
     }
   }
@@ -210,6 +233,8 @@ export function AdminWhatsappChat({
     const refreshed = await fetch(`/api/admin/chat?leadId=${selectedLead.id}`).then((result) => result.json());
     const refreshedThreads = await fetch("/api/admin/chat/threads").then((result) => result.json());
     shouldKeepBottomRef.current = true;
+    markKnownInboundMessages(refreshed.messages ?? [], knownInboundIdsRef.current);
+    unreadTotalRef.current = sumUnreadMessages(refreshedThreads.leads ?? threads);
     setMessages(refreshed.messages ?? []);
     setThreads(refreshedThreads.leads ?? threads);
     setText("");
@@ -247,10 +272,12 @@ export function AdminWhatsappChat({
     shouldKeepBottomRef.current = isNearBottom(messagesAreaRef.current);
 
     if (chatResponse.ok && Array.isArray(chatData?.messages)) {
+      markKnownInboundMessages(chatData.messages, knownInboundIdsRef.current);
       setMessages(chatData.messages);
     }
 
     if (threadsResponse.ok && Array.isArray(threadsData?.leads)) {
+      unreadTotalRef.current = sumUnreadMessages(threadsData.leads);
       setThreads(threadsData.leads);
     }
 
@@ -450,6 +477,70 @@ function scrollToBottom(element: HTMLDivElement | null, fallback: HTMLDivElement
   fallback?.scrollIntoView({ behavior: "auto", block: "end" });
 }
 
+function sumUnreadMessages(leads: ChatLead[]) {
+  return leads.reduce((total, lead) => total + lead.unreadCount, 0);
+}
+
+function markKnownInboundMessages(messages: ChatMessage[], knownIds: Set<string>) {
+  messages.forEach((message) => {
+    if (message.direction === "INBOUND") {
+      knownIds.add(message.id);
+    }
+  });
+}
+
+function hasNewInboundMessages(messages: ChatMessage[], knownIds: Set<string>) {
+  let hasNewMessage = false;
+
+  messages.forEach((message) => {
+    if (message.direction !== "INBOUND") {
+      return;
+    }
+
+    if (!knownIds.has(message.id)) {
+      hasNewMessage = true;
+    }
+
+    knownIds.add(message.id);
+  });
+
+  return hasNewMessage;
+}
+
+function playNotificationSound(audioContextRef: React.MutableRefObject<AudioContext | null>) {
+  const AudioContextConstructor = window.AudioContext || (window as WindowWithAudioFallback).webkitAudioContext;
+
+  if (!AudioContextConstructor) {
+    return;
+  }
+
+  const context = audioContextRef.current ?? new AudioContextConstructor();
+  audioContextRef.current = context;
+
+  if (context.state === "suspended") {
+    void context.resume().catch(() => undefined);
+  }
+
+  const now = context.currentTime;
+  playTone(context, now, 740, 0.08);
+  playTone(context, now + 0.1, 980, 0.1);
+}
+
+function playTone(context: AudioContext, startTime: number, frequency: number, duration: number) {
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+
+  oscillator.type = "sine";
+  oscillator.frequency.setValueAtTime(frequency, startTime);
+  gain.gain.setValueAtTime(0.0001, startTime);
+  gain.gain.exponentialRampToValueAtTime(0.045, startTime + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+  oscillator.connect(gain);
+  gain.connect(context.destination);
+  oscillator.start(startTime);
+  oscillator.stop(startTime + duration + 0.02);
+}
+
 function AttachmentPreview({ message }: { message: ChatMessage }) {
   if (!message.attachmentUrl) {
     return null;
@@ -508,11 +599,15 @@ function DraftPreviewMedia({ attachment }: { attachment: AttachmentDraft }) {
 }
 
 function LinkifiedText({ text }: { text: string }) {
-  const parts = text.split(/(https?:\/\/[^\s]+|www\.[^\s]+)/g);
+  const parts = text.split(/(https?:\/\/[^\s]+|www\.[^\s]+|\*[^*\n]+\*)/g);
 
   return (
     <>
       {parts.map((part, index) => {
+        if (/^\*[^*\n]+\*$/.test(part)) {
+          return <strong key={`${part}-${index}`}>{part.slice(1, -1)}</strong>;
+        }
+
         if (!/^(https?:\/\/|www\.)/.test(part)) {
           return <span key={`${part}-${index}`}>{part}</span>;
         }
