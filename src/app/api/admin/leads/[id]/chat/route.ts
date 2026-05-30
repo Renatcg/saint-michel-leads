@@ -32,8 +32,9 @@ type SenderRow = {
 
 function formatMessageForLead(senderName: string, text: string) {
   const cleanText = text.trim();
+  const senderLabel = `*${senderName}:*`;
 
-  return cleanText ? `${senderName}:\n${cleanText}` : `${senderName}:`;
+  return cleanText ? `${senderLabel}\n${cleanText}` : senderLabel;
 }
 
 export async function POST(request: Request, context: RouteContext) {
