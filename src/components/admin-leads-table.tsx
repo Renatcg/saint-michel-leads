@@ -228,10 +228,10 @@ export function AdminLeadsTable({
                           </button>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-2">
                           {canChat ? (
                             <Link
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-emerald-200 text-emerald-700"
+                              className="inline-flex h-5 w-5 items-center justify-center text-emerald-700 transition hover:scale-110"
                               href={`/admin/chat?leadId=${lead.id}`}
                               title="Abrir chat"
                               aria-label="Abrir chat"
@@ -242,7 +242,7 @@ export function AdminLeadsTable({
                           {canEdit ? (
                             <>
                               <button
-                                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-black/15 text-neutral-700"
+                                className="inline-flex h-5 w-5 items-center justify-center text-neutral-700 transition hover:scale-110"
                                 type="button"
                                 title="Editar lead"
                                 aria-label="Editar lead"
@@ -251,7 +251,7 @@ export function AdminLeadsTable({
                                 <IconEdit />
                               </button>
                               <button
-                                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-200 text-red-700 disabled:opacity-60"
+                                className="inline-flex h-5 w-5 items-center justify-center text-red-700 transition hover:scale-110 disabled:opacity-60"
                                 type="button"
                                 disabled={loadingId === lead.id}
                                 title="Excluir lead"
@@ -295,7 +295,7 @@ function formatDateTime(value: string) {
 
 function IconChat() {
   return (
-    <svg aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+    <svg aria-hidden="true" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
       <path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.8 8.8 0 0 1-3.8-.9L3 21l1.8-4.8A8.2 8.2 0 0 1 4 11.5 8.5 8.5 0 0 1 12.5 3 8.5 8.5 0 0 1 21 11.5Z" />
     </svg>
   );
@@ -303,7 +303,7 @@ function IconChat() {
 
 function IconEdit() {
   return (
-    <svg aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+    <svg aria-hidden="true" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
       <path d="M12 20h9" />
       <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
     </svg>
@@ -312,7 +312,7 @@ function IconEdit() {
 
 function IconTrash() {
   return (
-    <svg aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+    <svg aria-hidden="true" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
       <path d="M3 6h18" />
       <path d="M8 6V4h8v2" />
       <path d="M6 6l1 15h10l1-15" />
