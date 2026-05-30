@@ -20,6 +20,7 @@ const roleLabels = {
 export function AdminUsersManager({ initialUsers }: { initialUsers: UserRow[] }) {
   const [users, setUsers] = useState(initialUsers);
   const [open, setOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<UserRow | null>(null);
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
@@ -55,6 +56,73 @@ export function AdminUsersManager({ initialUsers }: { initialUsers: UserRow[] })
     setMessage("Usuário criado.");
   }
 
+  function startEditing(user: UserRow) {
+    setEditingUser(user);
+    setOpen(true);
+    setMessage("");
+    setForm({
+      name: user.name,
+      email: user.email,
+      password: "",
+      role: user.role,
+      active: user.active,
+    });
+  }
+
+  function closeModal() {
+    setOpen(false);
+    setEditingUser(null);
+    setForm({ name: "", email: "", password: "", role: "VIEWER", active: true });
+  }
+
+  async function saveUser() {
+    if (!editingUser) {
+      return createUser();
+    }
+
+    setSaving(true);
+    setMessage("");
+
+    const response = await fetch(`/api/admin/users/${editingUser.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form),
+    });
+
+    setSaving(false);
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => null);
+      setMessage(data?.error ?? "Não foi possível atualizar o usuário.");
+      return;
+    }
+
+    const data = await response.json();
+    setUsers((current) => current.map((user) => (user.id === editingUser.id ? data.user : user)));
+    closeModal();
+    setMessage("Usuário atualizado.");
+  }
+
+  async function deleteUser(user: UserRow) {
+    if (!window.confirm(`Excluir o usuário ${user.name}?`)) {
+      return;
+    }
+
+    setMessage("");
+    const response = await fetch(`/api/admin/users/${user.id}`, {
+      method: "DELETE",
+    });
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => null);
+      setMessage(data?.error ?? "Não foi possível excluir o usuário.");
+      return;
+    }
+
+    setUsers((current) => current.filter((item) => item.id !== user.id));
+    setMessage("Usuário excluído.");
+  }
+
   return (
     <div className="mt-6">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -72,6 +140,7 @@ export function AdminUsersManager({ initialUsers }: { initialUsers: UserRow[] })
               <th className="px-4 py-3 font-medium">E-mail</th>
               <th className="px-4 py-3 font-medium">Perfil</th>
               <th className="px-4 py-3 font-medium">Status</th>
+              <th className="px-4 py-3 font-medium">Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -81,6 +150,28 @@ export function AdminUsersManager({ initialUsers }: { initialUsers: UserRow[] })
                 <td className="px-4 py-3">{user.email}</td>
                 <td className="px-4 py-3">{roleLabels[user.role]}</td>
                 <td className="px-4 py-3">{user.active ? "Ativo" : "Inativo"}</td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-black/15 text-neutral-700"
+                      type="button"
+                      title="Editar usuário"
+                      aria-label="Editar usuário"
+                      onClick={() => startEditing(user)}
+                    >
+                      <IconEdit />
+                    </button>
+                    <button
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-200 text-red-700"
+                      type="button"
+                      title="Excluir usuário"
+                      aria-label="Excluir usuário"
+                      onClick={() => deleteUser(user)}
+                    >
+                      <IconTrash />
+                    </button>
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -92,10 +183,10 @@ export function AdminUsersManager({ initialUsers }: { initialUsers: UserRow[] })
           <div className="w-full max-w-lg rounded-lg bg-white p-5 shadow-xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-xl font-semibold">Criar usuário</h2>
+                <h2 className="text-xl font-semibold">{editingUser ? "Editar usuário" : "Criar usuário"}</h2>
                 <p className="mt-1 text-sm text-neutral-600">Admins gerenciam tudo. Viewers acessam leads e chat.</p>
               </div>
-              <button className="rounded-md border border-black/15 px-3 py-2 text-sm font-semibold" type="button" onClick={() => setOpen(false)}>
+              <button className="rounded-md border border-black/15 px-3 py-2 text-sm font-semibold" type="button" onClick={closeModal}>
                 Fechar
               </button>
             </div>
@@ -103,7 +194,12 @@ export function AdminUsersManager({ initialUsers }: { initialUsers: UserRow[] })
             <div className="mt-5 grid gap-4">
               <TextInput label="Nome" value={form.name} onChange={(name) => setForm({ ...form, name })} />
               <TextInput label="E-mail" value={form.email} onChange={(email) => setForm({ ...form, email })} />
-              <TextInput label="Senha provisória" type="password" value={form.password} onChange={(password) => setForm({ ...form, password })} />
+              <TextInput
+                label={editingUser ? "Nova senha (opcional)" : "Senha provisória"}
+                type="password"
+                value={form.password}
+                onChange={(password) => setForm({ ...form, password })}
+              />
               <label>
                 <span className="mb-2 block text-sm font-medium text-neutral-700">Perfil</span>
                 <select
@@ -123,17 +219,37 @@ export function AdminUsersManager({ initialUsers }: { initialUsers: UserRow[] })
             </div>
 
             <div className="mt-5 flex justify-end gap-2">
-              <button className="rounded-lg border border-black/15 px-4 py-3 font-semibold text-neutral-700" type="button" onClick={() => setOpen(false)}>
+              <button className="rounded-lg border border-black/15 px-4 py-3 font-semibold text-neutral-700" type="button" onClick={closeModal}>
                 Cancelar
               </button>
-              <button className="rounded-lg bg-[#98743e] px-4 py-3 font-semibold text-white disabled:opacity-60" type="button" disabled={saving} onClick={createUser}>
-                {saving ? "Criando..." : "Criar usuário"}
+              <button className="rounded-lg bg-[#98743e] px-4 py-3 font-semibold text-white disabled:opacity-60" type="button" disabled={saving} onClick={saveUser}>
+                {saving ? "Salvando..." : editingUser ? "Salvar usuário" : "Criar usuário"}
               </button>
             </div>
           </div>
         </div>
       ) : null}
     </div>
+  );
+}
+
+function IconEdit() {
+  return (
+    <svg aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+    </svg>
+  );
+}
+
+function IconTrash() {
+  return (
+    <svg aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+      <path d="M3 6h18" />
+      <path d="M8 6V4h8v2" />
+      <path d="M6 6l1 15h10l1-15" />
+      <path d="M10 11v6M14 11v6" />
+    </svg>
   );
 }
 
