@@ -60,15 +60,28 @@ export function AdminWhatsappChat({
   const [syncing, setSyncing] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [notice, setNotice] = useState("");
+  const messagesAreaRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const textAreaRef = useRef<HTMLTextAreaElement | null>(null);
+  const pendingInitialScrollRef = useRef(true);
+  const shouldKeepBottomRef = useRef(false);
 
   const selectedLead = useMemo(() => threads.find((lead) => lead.id === activeLeadId) ?? threads[0] ?? null, [threads, activeLeadId]);
 
   useLayoutEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
-  }, [messages, activeLeadId]);
+    if (loadingMessages) {
+      return;
+    }
+
+    if (!pendingInitialScrollRef.current && !shouldKeepBottomRef.current) {
+      return;
+    }
+
+    scrollToBottom(messagesAreaRef.current, bottomRef.current);
+    pendingInitialScrollRef.current = false;
+    shouldKeepBottomRef.current = false;
+  }, [messages, loadingMessages]);
 
   useLayoutEffect(() => {
     const textArea = textAreaRef.current;
@@ -93,6 +106,7 @@ export function AdminWhatsappChat({
       ]);
       const chatData = await chatResponse.json().catch(() => null);
       const threadsData = await threadsResponse.json().catch(() => null);
+      shouldKeepBottomRef.current = isNearBottom(messagesAreaRef.current);
 
       if (chatResponse.ok && Array.isArray(chatData?.messages)) {
         setMessages(chatData.messages);
@@ -112,6 +126,8 @@ export function AdminWhatsappChat({
       return;
     }
 
+    pendingInitialScrollRef.current = true;
+    shouldKeepBottomRef.current = false;
     setActiveLeadId(leadId);
     setMessages([]);
     setLoadingMessages(true);
@@ -193,6 +209,7 @@ export function AdminWhatsappChat({
 
     const refreshed = await fetch(`/api/admin/chat?leadId=${selectedLead.id}`).then((result) => result.json());
     const refreshedThreads = await fetch("/api/admin/chat/threads").then((result) => result.json());
+    shouldKeepBottomRef.current = true;
     setMessages(refreshed.messages ?? []);
     setThreads(refreshedThreads.leads ?? threads);
     setText("");
@@ -227,6 +244,7 @@ export function AdminWhatsappChat({
     ]);
     const chatData = await chatResponse.json().catch(() => null);
     const threadsData = await threadsResponse.json().catch(() => null);
+    shouldKeepBottomRef.current = isNearBottom(messagesAreaRef.current);
 
     if (chatResponse.ok && Array.isArray(chatData?.messages)) {
       setMessages(chatData.messages);
@@ -314,7 +332,7 @@ export function AdminWhatsappChat({
               </div>
             </header>
 
-            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-5">
+            <div ref={messagesAreaRef} className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-5">
               <div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-3">
                 <div className="mt-auto" />
                 {!loadingMessages && messages.length === 0 ? (
@@ -413,6 +431,23 @@ export function AdminWhatsappChat({
       </section>
     </div>
   );
+}
+
+function isNearBottom(element: HTMLDivElement | null) {
+  if (!element) {
+    return true;
+  }
+
+  return element.scrollHeight - element.scrollTop - element.clientHeight < 120;
+}
+
+function scrollToBottom(element: HTMLDivElement | null, fallback: HTMLDivElement | null) {
+  if (element) {
+    element.scrollTop = element.scrollHeight;
+    return;
+  }
+
+  fallback?.scrollIntoView({ behavior: "auto", block: "end" });
 }
 
 function AttachmentPreview({ message }: { message: ChatMessage }) {
