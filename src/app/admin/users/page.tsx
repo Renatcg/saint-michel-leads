@@ -1,15 +1,15 @@
 import { redirect } from "next/navigation";
 import { AdminShell } from "@/components/admin-shell";
 import { AdminUsersManager } from "@/components/admin-users-manager";
-import { canManageUsers, getCurrentUser } from "@/lib/auth";
+import { requireAdminUser } from "@/lib/admin-auth";
 import { getPrisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 export default async function UsersPage() {
-  const currentUser = await getCurrentUser();
+  const { response } = await requireAdminUser(["ADMIN"]);
 
-  if (!currentUser || !canManageUsers(currentUser.role)) {
+  if (response) {
     redirect("/admin");
   }
 

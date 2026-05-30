@@ -1,9 +1,17 @@
+import { redirect } from "next/navigation";
 import { AdminShell } from "@/components/admin-shell";
+import { requireAdminUser } from "@/lib/admin-auth";
 import { getPrisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminDashboardPage() {
+  const { response } = await requireAdminUser(["ADMIN", "MANAGER"]);
+
+  if (response) {
+    redirect("/admin/leads");
+  }
+
   const prisma = getPrisma();
   const now = new Date();
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());

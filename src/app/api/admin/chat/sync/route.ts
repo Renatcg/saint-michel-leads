@@ -4,7 +4,7 @@ import { replaceEvolutionHistoryForLeads, syncEvolutionHistoryForLeads } from "@
 import { getPrisma } from "@/lib/prisma";
 
 export async function POST(request: Request) {
-  const { response } = await requireAdminUser();
+  const { response } = await requireAdminUser(["ADMIN", "MANAGER"]);
 
   if (response) {
     return response;

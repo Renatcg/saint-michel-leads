@@ -41,11 +41,13 @@ export function AdminWhatsappChat({
   selectedLeadId,
   initialMessages,
   canChat,
+  canSyncHistory,
 }: {
   leads: ChatLead[];
   selectedLeadId: string | null;
   initialMessages: ChatMessage[];
   canChat: boolean;
+  canSyncHistory: boolean;
 }) {
   const [threads, setThreads] = useState(leads);
   const [activeLeadId, setActiveLeadId] = useState(selectedLeadId);
@@ -245,23 +247,25 @@ export function AdminWhatsappChat({
             <div>
               <h1 className="text-2xl font-semibold">Chat</h1>
             </div>
-            <button
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-black/15 text-lg text-neutral-700 hover:bg-neutral-100 disabled:opacity-60"
-              type="button"
-              disabled={syncing}
-              onClick={syncAllHistory}
-              title="Atualizar histórico"
-              aria-label="Atualizar histórico"
-            >
-              {syncing ? (
-                "..."
-              ) : (
-                <svg aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path d="M20 11a8 8 0 0 0-14.9-4M4 5v5h5" />
-                  <path d="M4 13a8 8 0 0 0 14.9 4M20 19v-5h-5" />
-                </svg>
-              )}
-            </button>
+            {canSyncHistory ? (
+              <button
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-black/15 text-lg text-neutral-700 hover:bg-neutral-100 disabled:opacity-60"
+                type="button"
+                disabled={syncing}
+                onClick={syncAllHistory}
+                title="Atualizar histórico"
+                aria-label="Atualizar histórico"
+              >
+                {syncing ? (
+                  "..."
+                ) : (
+                  <svg aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path d="M20 11a8 8 0 0 0-14.9-4M4 5v5h5" />
+                    <path d="M4 13a8 8 0 0 0 14.9 4M20 19v-5h-5" />
+                  </svg>
+                )}
+              </button>
+            ) : null}
           </div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">

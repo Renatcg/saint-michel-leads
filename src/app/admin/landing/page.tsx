@@ -1,12 +1,19 @@
+import { redirect } from "next/navigation";
 import { AdminLandingSettings } from "@/components/admin-landing-settings";
 import { AdminShell } from "@/components/admin-shell";
-import { canEditLeads, getCurrentUser } from "@/lib/auth";
+import { requireAdminUser } from "@/lib/admin-auth";
+import { canEditLeads } from "@/lib/auth";
 import { getLandingSettings } from "@/lib/landing";
 
 export const dynamic = "force-dynamic";
 
 export default async function LandingSettingsPage() {
-  const currentUser = await getCurrentUser();
+  const { response, user: currentUser } = await requireAdminUser(["ADMIN", "MANAGER"]);
+
+  if (response || !currentUser) {
+    redirect("/admin/leads");
+  }
+
   const canEdit = currentUser ? canEditLeads(currentUser.role) : false;
 
   return (

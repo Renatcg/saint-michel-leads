@@ -3,7 +3,7 @@ import { requireAdminUser } from "@/lib/admin-auth";
 import { getLandingSettings, normalizeLandingSettings, saveLandingSettings } from "@/lib/landing";
 
 export async function GET() {
-  const { response } = await requireAdminUser();
+  const { response } = await requireAdminUser(["ADMIN", "MANAGER"]);
 
   if (response) {
     return response;

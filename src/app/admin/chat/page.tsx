@@ -1,7 +1,9 @@
 import { Prisma } from "@prisma/client";
+import { redirect } from "next/navigation";
 import { AdminShell } from "@/components/admin-shell";
 import { AdminWhatsappChat } from "@/components/admin-whatsapp-chat";
-import { getCurrentUser } from "@/lib/auth";
+import { requireAdminUser } from "@/lib/admin-auth";
+import { canAccessManagement } from "@/lib/auth";
 import { getPrisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -42,8 +44,12 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
   const params = searchParams ? await searchParams : {};
   const requestedLeadId = getParam(params, "leadId") ?? null;
   const prisma = getPrisma();
-  const currentUser = await getCurrentUser();
+  const { response, user: currentUser } = await requireAdminUser();
+  if (response || !currentUser) {
+    redirect("/admin/login");
+  }
   const canChat = Boolean(currentUser);
+  const canSyncHistory = canAccessManagement(currentUser.role);
 
   const leads = await prisma.lead.findMany({
     orderBy: { updatedAt: "desc" },
@@ -95,6 +101,7 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
       <AdminWhatsappChat
         key={selectedLeadId}
         canChat={canChat}
+        canSyncHistory={canSyncHistory}
         selectedLeadId={selectedLeadId}
         initialMessages={messages.map((message) => ({
           ...message,

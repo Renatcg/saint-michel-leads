@@ -4,7 +4,7 @@ import { getIntegrationSettings, saveIntegrationSettings } from "@/lib/integrati
 import { getLandingSettings, saveLandingSettings } from "@/lib/landing";
 
 export async function GET() {
-  const { response } = await requireAdminUser();
+  const { response } = await requireAdminUser(["ADMIN", "MANAGER"]);
 
   if (response) {
     return response;

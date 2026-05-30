@@ -1,7 +1,9 @@
 import { Prisma } from "@prisma/client";
+import { redirect } from "next/navigation";
 import { AdminLeadsTable } from "@/components/admin-leads-table";
 import { AdminShell } from "@/components/admin-shell";
-import { canEditLeads, getCurrentUser } from "@/lib/auth";
+import { requireAdminUser } from "@/lib/admin-auth";
+import { canEditLeads } from "@/lib/auth";
 import { leadStatusLabels, leadStatusValues, type LeadStatusValue } from "@/lib/leads";
 import { getPrisma } from "@/lib/prisma";
 
@@ -21,7 +23,10 @@ export default async function LeadsPage({ searchParams }: LeadsPageProps) {
   const query = getParam(params, "q")?.trim() ?? "";
   const status = getParam(params, "status")?.trim() ?? "";
   const prisma = getPrisma();
-  const currentUser = await getCurrentUser();
+  const { response, user: currentUser } = await requireAdminUser();
+  if (response || !currentUser) {
+    redirect("/admin/login");
+  }
   const canEdit = currentUser ? canEditLeads(currentUser.role) : false;
   const canChat = Boolean(currentUser);
 

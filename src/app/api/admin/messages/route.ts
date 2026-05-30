@@ -5,7 +5,7 @@ import { getPrisma } from "@/lib/prisma";
 import { messageTemplateSchema } from "@/lib/validators";
 
 export async function GET() {
-  const { response } = await requireAdminUser();
+  const { response } = await requireAdminUser(["ADMIN", "MANAGER"]);
 
   if (response) {
     return response;

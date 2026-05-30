@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import type { Route } from "next";
 import { jwtVerify, SignJWT } from "jose";
 import type { UserRole } from "@prisma/client";
 
@@ -76,4 +77,32 @@ export function canManageUsers(role: UserRole) {
 
 export function canEditLeads(role: UserRole) {
   return role === "ADMIN" || role === "MANAGER";
+}
+
+export function canAccessManagement(role: UserRole) {
+  return role === "ADMIN" || role === "MANAGER";
+}
+
+export function getAdminNavItems(role: UserRole): Array<{ href: Route; label: string }> {
+  if (role === "VIEWER") {
+    return [
+      { href: "/admin/leads", label: "Leads" },
+      { href: "/admin/chat", label: "Chat" },
+    ];
+  }
+
+  const items: Array<{ href: Route; label: string }> = [
+    { href: "/admin", label: "Dashboard" },
+    { href: "/admin/landing", label: "Landing" },
+    { href: "/admin/leads", label: "Leads" },
+    { href: "/admin/chat", label: "Chat" },
+    { href: "/admin/messages", label: "Mensagens" },
+    { href: "/admin/integrations", label: "Integrações" },
+  ];
+
+  if (role === "ADMIN") {
+    items.splice(4, 0, { href: "/admin/users", label: "Usuários" });
+  }
+
+  return items;
 }

@@ -1,24 +1,17 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { LogoutButton } from "@/components/logout-button";
-import { getCurrentUser } from "@/lib/auth";
-
-const navItems = [
-  { href: "/admin", label: "Dashboard" },
-  { href: "/admin/landing", label: "Landing" },
-  { href: "/admin/leads", label: "Leads" },
-  { href: "/admin/chat", label: "Chat" },
-  { href: "/admin/users", label: "Usuários" },
-  { href: "/admin/messages", label: "Mensagens" },
-  { href: "/admin/integrations", label: "Integrações" },
-];
+import { requireAdminUser } from "@/lib/admin-auth";
+import { getAdminNavItems } from "@/lib/auth";
 
 export async function AdminShell({ children, fullBleed = false }: { children: React.ReactNode; fullBleed?: boolean }) {
-  const user = await getCurrentUser();
+  const { response, user } = await requireAdminUser();
 
-  if (!user) {
+  if (response || !user) {
     redirect("/admin/login");
   }
+
+  const navItems = getAdminNavItems(user.role);
 
   return (
     <div className="admin-shell">
