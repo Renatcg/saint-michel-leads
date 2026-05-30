@@ -99,6 +99,7 @@ export async function replaceEvolutionHistoryForLeads(leads: Pick<Lead, "id" | "
       await tx.messageLog.deleteMany({
         where: {
           channel: MessageChannel.WHATSAPP,
+          provider: "evolution-history",
         },
       });
 
@@ -190,7 +191,7 @@ function parseEvolutionMessage(record: Record<string, unknown>) {
   return {
     id: getString(key?.id) || getString(record.id) || null,
     remoteJid,
-    fromMe: Boolean(key?.fromMe ?? record.fromMe),
+    fromMe: parseBoolean(key?.fromMe ?? record.fromMe),
     text,
     attachmentUrl: getString(media?.url) || null,
     attachmentName: getString(media?.fileName) || null,
@@ -205,4 +206,16 @@ function getRecord(value: unknown) {
 
 function getString(value: unknown) {
   return typeof value === "string" ? value : "";
+}
+
+function parseBoolean(value: unknown) {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    return value.toLowerCase() === "true";
+  }
+
+  return Boolean(value);
 }

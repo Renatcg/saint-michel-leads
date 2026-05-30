@@ -31,6 +31,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, ignored: true, reason: "lead_not_found" });
   }
 
+  if (event.id) {
+    const existing = await prisma.messageLog.findFirst({
+      where: {
+        providerId: event.id,
+        provider: {
+          in: ["evolution-webhook", "evolution-history"],
+        },
+      },
+      select: { id: true },
+    });
+
+    if (existing) {
+      return NextResponse.json({ ok: true, ignored: true, reason: "duplicate" });
+    }
+  }
+
   await prisma.messageLog.create({
     data: {
       leadId: lead.id,
@@ -56,7 +72,7 @@ function extractEvolutionMessage(payload: unknown) {
   const key = getRecord(data?.key);
   const message = getRecord(data?.message);
   const remoteJid = String(key?.remoteJid || data?.remoteJid || "");
-  const fromMe = Boolean(key?.fromMe || data?.fromMe);
+  const fromMe = parseBoolean(key?.fromMe ?? data?.fromMe);
   const phone = remoteJid.split("@")[0] || String(data?.number || data?.phone || "");
   const text =
     getString(message?.conversation) ||
@@ -88,6 +104,18 @@ function getRecord(value: unknown) {
 
 function getString(value: unknown) {
   return typeof value === "string" ? value : "";
+}
+
+function parseBoolean(value: unknown) {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    return value.toLowerCase() === "true";
+  }
+
+  return Boolean(value);
 }
 
 function normalizeDigits(value: string) {
