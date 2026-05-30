@@ -28,6 +28,7 @@ type ChatMessageRow = {
   provider: string | null;
   providerId: string | null;
   direction: string;
+  senderName: string | null;
   readAt: Date | null;
   createdAt: Date;
 };
@@ -87,6 +88,7 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
           "provider",
           "providerId",
           "direction",
+          "senderName",
           "readAt",
           "createdAt"
         FROM "MessageLog"

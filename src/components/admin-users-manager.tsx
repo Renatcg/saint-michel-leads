@@ -5,6 +5,7 @@ import { useState } from "react";
 type UserRow = {
   id: string;
   name: string;
+  messageUsername: string;
   email: string;
   role: "ADMIN" | "MANAGER" | "VIEWER";
   active: boolean;
@@ -25,6 +26,7 @@ export function AdminUsersManager({ initialUsers }: { initialUsers: UserRow[] })
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     name: "",
+    messageUsername: "",
     email: "",
     password: "",
     role: "VIEWER" as UserRow["role"],
@@ -52,7 +54,7 @@ export function AdminUsersManager({ initialUsers }: { initialUsers: UserRow[] })
     const data = await response.json();
     setUsers((current) => [data.user, ...current]);
     setOpen(false);
-    setForm({ name: "", email: "", password: "", role: "VIEWER", active: true });
+    setForm({ name: "", messageUsername: "", email: "", password: "", role: "VIEWER", active: true });
     setMessage("Usuário criado.");
   }
 
@@ -62,6 +64,7 @@ export function AdminUsersManager({ initialUsers }: { initialUsers: UserRow[] })
     setMessage("");
     setForm({
       name: user.name,
+      messageUsername: user.messageUsername || user.name,
       email: user.email,
       password: "",
       role: user.role,
@@ -72,7 +75,7 @@ export function AdminUsersManager({ initialUsers }: { initialUsers: UserRow[] })
   function closeModal() {
     setOpen(false);
     setEditingUser(null);
-    setForm({ name: "", email: "", password: "", role: "VIEWER", active: true });
+    setForm({ name: "", messageUsername: "", email: "", password: "", role: "VIEWER", active: true });
   }
 
   async function saveUser() {
@@ -137,6 +140,7 @@ export function AdminUsersManager({ initialUsers }: { initialUsers: UserRow[] })
           <thead className="bg-neutral-100 text-neutral-600">
             <tr>
               <th className="px-4 py-3 font-medium">Nome</th>
+              <th className="px-4 py-3 font-medium">Nome nas mensagens</th>
               <th className="px-4 py-3 font-medium">E-mail</th>
               <th className="px-4 py-3 font-medium">Perfil</th>
               <th className="px-4 py-3 font-medium">Status</th>
@@ -147,6 +151,7 @@ export function AdminUsersManager({ initialUsers }: { initialUsers: UserRow[] })
             {users.map((user) => (
               <tr className="border-t border-black/10" key={user.id}>
                 <td className="px-4 py-3 font-medium">{user.name}</td>
+                <td className="px-4 py-3">{user.messageUsername || user.name}</td>
                 <td className="px-4 py-3">{user.email}</td>
                 <td className="px-4 py-3">{roleLabels[user.role]}</td>
                 <td className="px-4 py-3">{user.active ? "Ativo" : "Inativo"}</td>
@@ -193,6 +198,11 @@ export function AdminUsersManager({ initialUsers }: { initialUsers: UserRow[] })
 
             <div className="mt-5 grid gap-4">
               <TextInput label="Nome" value={form.name} onChange={(name) => setForm({ ...form, name })} />
+              <TextInput
+                label="Nome nas mensagens"
+                value={form.messageUsername}
+                onChange={(messageUsername) => setForm({ ...form, messageUsername })}
+              />
               <TextInput label="E-mail" value={form.email} onChange={(email) => setForm({ ...form, email })} />
               <TextInput
                 label={editingUser ? "Nova senha (opcional)" : "Senha provisória"}

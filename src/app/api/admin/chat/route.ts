@@ -13,6 +13,7 @@ type ChatMessageRow = {
   provider: string | null;
   providerId: string | null;
   direction: string;
+  senderName: string | null;
   readAt: Date | null;
   createdAt: Date;
 };
@@ -60,6 +61,7 @@ export async function GET(request: Request) {
       "provider",
       "providerId",
       "direction",
+      "senderName",
       "readAt",
       "createdAt"
     FROM "MessageLog"

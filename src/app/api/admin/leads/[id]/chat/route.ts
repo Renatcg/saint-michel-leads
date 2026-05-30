@@ -25,10 +25,15 @@ type RouteContext = {
   }>;
 };
 
-export async function POST(request: Request, context: RouteContext) {
-  const { response } = await requireAdminUser();
+type SenderRow = {
+  name: string;
+  messageUsername: string | null;
+};
 
-  if (response) {
+export async function POST(request: Request, context: RouteContext) {
+  const { response, user } = await requireAdminUser();
+
+  if (response || !user) {
     return response;
   }
 
@@ -41,6 +46,13 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   const prisma = getPrisma();
+  const [sender] = await prisma.$queryRaw<SenderRow[]>`
+    SELECT "name", "messageUsername"
+    FROM "User"
+    WHERE "id" = ${user.id}
+    LIMIT 1
+  `;
+  const senderName = sender?.messageUsername || sender?.name || user.name;
   const lead = await prisma.lead.findUnique({
     where: { id },
     select: {
@@ -78,6 +90,7 @@ export async function POST(request: Request, context: RouteContext) {
         attachmentName: parsed.data.attachment?.name,
         attachmentType: parsed.data.attachment?.type,
         direction: "OUTBOUND",
+        senderName,
         readAt: new Date(),
         provider: "evolution-manual",
         providerId: typeof result?.key?.id === "string" ? result.key.id : null,
@@ -102,6 +115,7 @@ export async function POST(request: Request, context: RouteContext) {
         attachmentName: parsed.data.attachment?.name,
         attachmentType: parsed.data.attachment?.type,
         direction: "OUTBOUND",
+        senderName,
         readAt: new Date(),
         provider: "evolution-manual",
         errorMessage,

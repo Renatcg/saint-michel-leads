@@ -6,6 +6,16 @@ import { getPrisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
+type UserRow = {
+  id: string;
+  name: string;
+  messageUsername: string | null;
+  email: string;
+  role: "ADMIN" | "MANAGER" | "VIEWER";
+  active: boolean;
+  createdAt: Date;
+};
+
 export default async function UsersPage() {
   const { response } = await requireAdminUser(["ADMIN"]);
 
@@ -13,9 +23,11 @@ export default async function UsersPage() {
     redirect("/admin");
   }
 
-  const users = await getPrisma().user.findMany({
-    orderBy: { createdAt: "desc" },
-  });
+  const users = await getPrisma().$queryRaw<UserRow[]>`
+    SELECT "id", "name", "messageUsername", "email", "role", "active", "createdAt"
+    FROM "User"
+    ORDER BY "createdAt" DESC
+  `;
 
   return (
     <AdminShell>
@@ -27,6 +39,7 @@ export default async function UsersPage() {
           initialUsers={users.map((user) => ({
             id: user.id,
             name: user.name,
+            messageUsername: user.messageUsername ?? user.name,
             email: user.email,
             role: user.role,
             active: user.active,

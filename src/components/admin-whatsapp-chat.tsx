@@ -26,6 +26,7 @@ type ChatMessage = {
   provider: string | null;
   providerId: string | null;
   direction: string;
+  senderName: string | null;
   readAt: string | null;
   createdAt: string;
 };
@@ -335,6 +336,9 @@ export function AdminWhatsappChat({
                           }`}
                         >
                           {message.attachmentUrl ? <AttachmentPreview message={message} /> : null}
+                          {message.direction === "OUTBOUND" && message.senderName ? (
+                            <p className="mb-1 font-bold text-neutral-900">{message.senderName}:</p>
+                          ) : null}
                           {message.content ? (
                             <p className="whitespace-pre-wrap break-words">
                               <LinkifiedText text={message.content} />{" "}
