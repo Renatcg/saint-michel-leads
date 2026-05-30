@@ -30,6 +30,12 @@ type SenderRow = {
   messageUsername: string | null;
 };
 
+function formatMessageForLead(senderName: string, text: string) {
+  const cleanText = text.trim();
+
+  return cleanText ? `${senderName}:\n${cleanText}` : `${senderName}:`;
+}
+
 export async function POST(request: Request, context: RouteContext) {
   const { response, user } = await requireAdminUser();
 
@@ -66,18 +72,20 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "Lead não encontrado." }, { status: 404 });
   }
 
+  const leadMessageText = formatMessageForLead(senderName, parsed.data.text);
+
   try {
     const result = parsed.data.attachment
       ? await sendEvolutionMediaMessage({
           number: lead.phone,
-          caption: parsed.data.text,
+          caption: leadMessageText,
           mediaUrl: parsed.data.attachment.url,
           fileName: parsed.data.attachment.name,
           mimeType: parsed.data.attachment.type,
         })
       : await sendEvolutionTextMessage({
           number: lead.phone,
-          text: parsed.data.text,
+          text: leadMessageText,
         });
 
     await prisma.messageLog.create({
