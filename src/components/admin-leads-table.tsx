@@ -124,7 +124,7 @@ export function AdminLeadsTable({
       ) : null}
 
       <div className="overflow-hidden rounded-lg border border-black/10 bg-white">
-        <table className="w-full min-w-[980px] border-collapse text-left text-sm">
+        <table className="w-full min-w-[920px] border-collapse text-left text-sm">
           <thead className="bg-neutral-100 text-neutral-600">
             <tr>
               <th className="px-4 py-3 font-medium">Nome</th>
@@ -132,7 +132,6 @@ export function AdminLeadsTable({
               <th className="px-4 py-3 font-medium">WhatsApp</th>
               <th className="px-4 py-3 font-medium">Status</th>
               <th className="px-4 py-3 font-medium">Origem</th>
-              <th className="px-4 py-3 font-medium">Mensagens</th>
               <th className="px-4 py-3 font-medium">Cadastro</th>
               {canEdit || canChat ? <th className="px-4 py-3 font-medium">Ações</th> : null}
             </tr>
@@ -142,8 +141,8 @@ export function AdminLeadsTable({
               const isEditing = editingId === lead.id && draft;
 
               return (
-                <tr className="border-t border-black/10 align-top" key={lead.id}>
-                  <td className="px-4 py-3 font-medium">
+                <tr className="border-t border-black/10 align-middle" key={lead.id}>
+                  <td className="px-4 py-2 font-medium">
                     {isEditing ? (
                       <input
                         className="w-full rounded-md border border-black/15 px-3 py-2"
@@ -154,7 +153,7 @@ export function AdminLeadsTable({
                       lead.name
                     )}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-2">
                     {isEditing ? (
                       <input
                         className="w-full rounded-md border border-black/15 px-3 py-2"
@@ -165,7 +164,7 @@ export function AdminLeadsTable({
                       lead.email
                     )}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-2">
                     {isEditing ? (
                       <input
                         className="w-full rounded-md border border-black/15 px-3 py-2"
@@ -176,7 +175,7 @@ export function AdminLeadsTable({
                       lead.phone
                     )}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-2">
                     {isEditing ? (
                       <select
                         className="w-full rounded-md border border-black/15 px-3 py-2"
@@ -193,7 +192,7 @@ export function AdminLeadsTable({
                       leadStatusLabels[lead.status]
                     )}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-2">
                     {isEditing ? (
                       <input
                         className="w-full rounded-md border border-black/15 px-3 py-2"
@@ -204,12 +203,9 @@ export function AdminLeadsTable({
                       lead.source
                     )}
                   </td>
-                  <td className="px-4 py-3 text-neutral-600">
-                    {lead.logsCount} envios / {lead.schedulesCount} pendentes
-                  </td>
-                  <td className="px-4 py-3">{new Date(lead.createdAt).toLocaleDateString("pt-BR")}</td>
+                  <td className="px-4 py-2">{formatDateTime(lead.createdAt)}</td>
                   {canEdit || canChat ? (
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-2">
                       {isEditing ? (
                         <div className="flex flex-wrap gap-2">
                           <button
@@ -232,10 +228,10 @@ export function AdminLeadsTable({
                           </button>
                         </div>
                       ) : (
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex items-center gap-1.5">
                           {canChat ? (
                             <Link
-                              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-emerald-200 text-emerald-700"
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-emerald-200 text-emerald-700"
                               href={`/admin/chat?leadId=${lead.id}`}
                               title="Abrir chat"
                               aria-label="Abrir chat"
@@ -246,7 +242,7 @@ export function AdminLeadsTable({
                           {canEdit ? (
                             <>
                               <button
-                                className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-black/15 text-neutral-700"
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-black/15 text-neutral-700"
                                 type="button"
                                 title="Editar lead"
                                 aria-label="Editar lead"
@@ -255,7 +251,7 @@ export function AdminLeadsTable({
                                 <IconEdit />
                               </button>
                               <button
-                                className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-red-200 text-red-700 disabled:opacity-60"
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-200 text-red-700 disabled:opacity-60"
                                 type="button"
                                 disabled={loadingId === lead.id}
                                 title="Excluir lead"
@@ -276,7 +272,7 @@ export function AdminLeadsTable({
 
             {leads.length === 0 ? (
               <tr>
-                <td className="px-4 py-8 text-center text-neutral-500" colSpan={canEdit || canChat ? 8 : 7}>
+                <td className="px-4 py-8 text-center text-neutral-500" colSpan={canEdit || canChat ? 7 : 6}>
                   Nenhum lead encontrado.
                 </td>
               </tr>
@@ -286,6 +282,15 @@ export function AdminLeadsTable({
       </div>
     </div>
   );
+}
+
+function formatDateTime(value: string) {
+  const date = new Date(value);
+
+  return `${date.toLocaleDateString("pt-BR")} ${date.toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  })}`;
 }
 
 function IconChat() {

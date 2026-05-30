@@ -352,12 +352,7 @@ export function AdminWhatsappChat({
             <footer className="border-t border-black/10 bg-[#f0f2f5] p-3">
               {notice ? <p className="mb-2 rounded-md bg-white px-3 py-2 text-sm text-red-700">{notice}</p> : null}
               {attachment ? (
-                <div className="mb-2 flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 text-sm">
-                  <span className="truncate">Anexo: {attachment.name}</span>
-                  <button className="font-semibold text-red-700" type="button" onClick={() => setAttachment(null)}>
-                    Remover
-                  </button>
-                </div>
+                <AttachmentDraftPreview attachment={attachment} onRemove={() => setAttachment(null)} />
               ) : null}
               <div className="flex items-end gap-2">
                 <input
@@ -433,6 +428,39 @@ function AttachmentPreview({ message }: { message: ChatMessage }) {
     <a className="mb-2 block rounded-md bg-white/70 px-3 py-2 font-semibold text-[#1f7a3a]" href={message.attachmentUrl} rel="noreferrer" target="_blank">
       {message.attachmentName ?? "Abrir documento"}
     </a>
+  );
+}
+
+function AttachmentDraftPreview({ attachment, onRemove }: { attachment: AttachmentDraft; onRemove: () => void }) {
+  return (
+    <div className="mb-2 flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 text-sm shadow-sm">
+      <div className="flex min-w-0 items-center gap-3">
+        <DraftPreviewMedia attachment={attachment} />
+        <div className="min-w-0">
+          <p className="truncate font-semibold text-neutral-800">{attachment.name}</p>
+          <p className="text-xs text-neutral-500">{attachment.type || "Arquivo anexado"}</p>
+        </div>
+      </div>
+      <button className="shrink-0 rounded-md border border-red-200 px-3 py-2 text-xs font-semibold text-red-700" type="button" onClick={onRemove}>
+        Remover
+      </button>
+    </div>
+  );
+}
+
+function DraftPreviewMedia({ attachment }: { attachment: AttachmentDraft }) {
+  if (attachment.type.startsWith("image/")) {
+    return <img className="h-14 w-14 rounded-md object-cover" src={attachment.url} alt={attachment.name} />;
+  }
+
+  if (attachment.type.startsWith("video/")) {
+    return <video className="h-14 w-20 rounded-md object-cover" src={attachment.url} muted />;
+  }
+
+  return (
+    <span className="flex h-14 w-14 items-center justify-center rounded-md bg-neutral-100 text-xs font-bold uppercase text-neutral-600">
+      {attachment.type.includes("pdf") ? "PDF" : "DOC"}
+    </span>
   );
 }
 
