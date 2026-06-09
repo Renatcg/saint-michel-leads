@@ -13,6 +13,7 @@ type ChatLead = {
   assignedToUserId: string | null;
   assignedToName: string | null;
   lastOutboundAt: string | null;
+  outboundCount: number;
   createdAt: string;
   lastMessageAt: string | null;
   lastMessage: string;
@@ -467,7 +468,7 @@ export function AdminWhatsappChat({
             </p>
           ) : null}
           {threadSections.map((section) => {
-            const collapsed = section.alwaysOpen ? false : collapsedGroups.has(section.id);
+            const collapsed = collapsedGroups.has(section.id);
 
             return (
             <div key={section.id}>
@@ -475,14 +476,13 @@ export function AdminWhatsappChat({
                 <button
                   className="sticky top-0 z-10 flex w-full items-center justify-between gap-3 border-b border-black/10 bg-neutral-100 px-3 py-2.5 text-left text-xs font-bold uppercase tracking-[0.12em] text-neutral-600 hover:bg-neutral-200"
                   type="button"
-                  onClick={() => (section.alwaysOpen ? undefined : toggleGroup(section.id))}
+                  onClick={() => toggleGroup(section.id)}
                   aria-expanded={!collapsed}
-                  disabled={section.alwaysOpen}
                 >
                   <span className="flex min-w-0 items-center gap-2">
                     <svg
                       aria-hidden="true"
-                      className={`h-3.5 w-3.5 shrink-0 transition-transform ${section.alwaysOpen ? "opacity-30" : collapsed ? "-rotate-90" : "rotate-0"}`}
+                      className={`h-3.5 w-3.5 shrink-0 transition-transform ${collapsed ? "-rotate-90" : "rotate-0"}`}
                       fill="none"
                       stroke="currentColor"
                       strokeLinecap="round"
@@ -495,11 +495,18 @@ export function AdminWhatsappChat({
                     <span className="truncate">{section.label}</span>
                   </span>
                   <span className="shrink-0 rounded-full bg-white px-2 py-0.5 text-[10px] tracking-normal text-neutral-600">
-                    {section.leads.length}
+                    {section.count}
                   </span>
                 </button>
               ) : null}
-              {collapsed ? null : section.leads.map((lead) => (
+              {collapsed ? null : section.groups.map((group) => (
+                <div key={group.id}>
+                  {group.showHeader ? (
+                    <div className="border-b border-black/5 bg-white px-3 py-2 text-[11px] font-bold uppercase tracking-[0.1em] text-neutral-500">
+                      {group.label}
+                    </div>
+                  ) : null}
+                  {group.leads.map((lead) => (
                 <div
                   className={`flex w-full gap-3 border-b border-black/5 px-3 py-3 text-left hover:bg-neutral-50 ${
                     lead.id === selectedLead?.id ? "bg-[#f0f2f5]" : ""
@@ -549,6 +556,8 @@ export function AdminWhatsappChat({
                   >
                     <StarIcon filled={lead.isFavorite} />
                   </button>
+                </div>
+                  ))}
                 </div>
               ))}
             </div>
@@ -738,14 +747,22 @@ function sumUnreadMessages(leads: ChatLead[]) {
 
 function buildThreadSections(leads: ChatLead[], showAssigneeGroups: boolean) {
   if (!showAssigneeGroups) {
-    return [{ id: "all", label: "Conversas", leads, showHeader: false, alwaysOpen: true }];
+    return [
+      {
+        id: "all",
+        label: "Conversas",
+        count: leads.length,
+        groups: [{ id: "all-leads", label: "Conversas", leads, showHeader: false }],
+        showHeader: false,
+      },
+    ];
   }
 
   const newLeads = leads
-    .filter((lead) => !lead.assignedToUserId && !lead.lastOutboundAt)
+    .filter((lead) => isNewLead(lead))
     .sort((left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime());
   const unassignedLeads = leads
-    .filter((lead) => !lead.assignedToUserId && lead.lastOutboundAt)
+    .filter((lead) => !lead.assignedToUserId && !isNewLead(lead))
     .sort((left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime());
   const assignedLeads = leads.filter((lead) => lead.assignedToUserId);
   const brokerGroups = new Map<string, ChatLead[]>();
@@ -759,29 +776,51 @@ function buildThreadSections(leads: ChatLead[], showAssigneeGroups: boolean) {
     {
       id: "new-leads",
       label: "Novos Leads",
-      leads: newLeads,
+      count: newLeads.length,
+      groups: [{ id: "new-leads-list", label: "Novos Leads", leads: newLeads, showHeader: false }],
       showHeader: true,
-      alwaysOpen: true,
     },
-    ...Array.from(brokerGroups.entries())
-      .map(([id, groupedLeads]) => ({
-        id: `broker-${id}`,
-        label: groupedLeads[0]?.assignedToName ?? "Sem corretor",
-        leads: groupedLeads.sort(sortByRecentActivity),
-        showHeader: true,
-        alwaysOpen: false,
-      }))
-      .sort((left, right) => left.label.localeCompare(right.label, "pt-BR")),
+    {
+      id: "brokers",
+      label: "Corretores",
+      count: assignedLeads.length,
+      groups: Array.from(brokerGroups.entries())
+        .map(([id, groupedLeads]) => ({
+          id: `broker-${id}`,
+          label: groupedLeads[0]?.assignedToName ?? "Sem corretor",
+          leads: groupedLeads.sort(sortByRecentActivity),
+          showHeader: true,
+        }))
+        .sort((left, right) => left.label.localeCompare(right.label, "pt-BR")),
+      showHeader: true,
+    },
     {
       id: "unassigned",
       label: "Sem Corretor",
-      leads: unassignedLeads,
+      count: unassignedLeads.length,
+      groups: [{ id: "unassigned-list", label: "Sem Corretor", leads: unassignedLeads, showHeader: false }],
       showHeader: true,
-      alwaysOpen: false,
     },
   ];
 
-  return sections.filter((section) => section.leads.length > 0);
+  return sections.filter((section) => section.count > 0);
+}
+
+function isNewLead(lead: ChatLead) {
+  return !lead.assignedToUserId && isTodayInSaoPaulo(lead.createdAt) && lead.outboundCount < 2;
+}
+
+function isTodayInSaoPaulo(value: string) {
+  return getSaoPauloDateKey(new Date(value)) === getSaoPauloDateKey(new Date());
+}
+
+function getSaoPauloDateKey(date: Date) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
 }
 
 function sortByRecentActivity(left: ChatLead, right: ChatLead) {

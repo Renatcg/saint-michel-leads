@@ -41,6 +41,11 @@ type LastMessageRow = {
   unreadCount: bigint;
 };
 
+type OutboundCountRow = {
+  leadId: string;
+  outboundCount: bigint;
+};
+
 export default async function ChatPage({ searchParams }: ChatPageProps) {
   const params = searchParams ? await searchParams : {};
   const requestedLeadId = getParam(params, "leadId") ?? null;
@@ -115,6 +120,20 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
         `
       : [];
   const lastMessagesByLead = new Map(lastMessages.map((message) => [message.leadId, message]));
+  const outboundCounts =
+    leads.length > 0
+      ? await prisma.$queryRaw<OutboundCountRow[]>`
+          SELECT
+            "leadId",
+            COUNT(*) AS "outboundCount"
+          FROM "MessageLog"
+          WHERE "channel" = 'WHATSAPP'
+            AND "direction" = 'OUTBOUND'
+            AND "leadId" IN (${Prisma.join(leads.map((lead) => lead.id))})
+          GROUP BY "leadId"
+        `
+      : [];
+  const outboundCountsByLead = new Map(outboundCounts.map((row) => [row.leadId, Number(row.outboundCount)]));
 
   const messages = selectedLeadId
     ? await prisma.$queryRaw<ChatMessageRow[]>`
@@ -165,6 +184,7 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
             assignedToUserId: lead.assignedToUserId,
             assignedToName: lead.assignedTo?.name ?? null,
             lastOutboundAt: lead.lastOutboundAt?.toISOString() ?? null,
+            outboundCount: outboundCountsByLead.get(lead.id) ?? 0,
             createdAt: lead.createdAt.toISOString(),
             lastMessageAt: lastLog?.createdAt.toISOString() ?? null,
             lastMessage: lastLog?.content || (lastLog?.attachmentName ? `Anexo: ${lastLog.attachmentName}` : ""),

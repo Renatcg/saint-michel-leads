@@ -12,6 +12,11 @@ type LastMessageRow = {
   unreadCount: bigint;
 };
 
+type OutboundCountRow = {
+  leadId: string;
+  outboundCount: bigint;
+};
+
 export async function GET() {
   const { response, user } = await requireAdminUser();
 
@@ -62,6 +67,20 @@ export async function GET() {
         `
       : [];
   const lastMessagesByLead = new Map(lastMessages.map((message) => [message.leadId, message]));
+  const outboundCounts =
+    leads.length > 0
+      ? await prisma.$queryRaw<OutboundCountRow[]>`
+          SELECT
+            "leadId",
+            COUNT(*) AS "outboundCount"
+          FROM "MessageLog"
+          WHERE "channel" = 'WHATSAPP'
+            AND "direction" = 'OUTBOUND'
+            AND "leadId" IN (${Prisma.join(leads.map((lead) => lead.id))})
+          GROUP BY "leadId"
+        `
+      : [];
+  const outboundCountsByLead = new Map(outboundCounts.map((row) => [row.leadId, Number(row.outboundCount)]));
 
   return NextResponse.json({
     leads: leads.map((lead) => {
@@ -76,6 +95,7 @@ export async function GET() {
         assignedToUserId: lead.assignedToUserId,
         assignedToName: lead.assignedTo?.name ?? null,
         lastOutboundAt: lead.lastOutboundAt?.toISOString() ?? null,
+        outboundCount: outboundCountsByLead.get(lead.id) ?? 0,
         createdAt: lead.createdAt.toISOString(),
         lastMessageAt: lastLog?.createdAt.toISOString() ?? null,
         lastMessage: lastLog?.content || (lastLog?.attachmentName ? `Anexo: ${lastLog.attachmentName}` : ""),
