@@ -12,6 +12,7 @@ type DayScale = {
   startBrokerId: string;
   startTime: string;
   endTime: string;
+  active: boolean;
 };
 
 type BrokerStats = {
@@ -20,46 +21,33 @@ type BrokerStats = {
   sameDayReplies: number;
 };
 
-const brokers: Broker[] = [
-  { id: "gabriel", name: "Gabriel Borges" },
-  { id: "renato", name: "Renato Guimarães" },
-  { id: "juliana", name: "Juliana Coelho" },
-  { id: "daniela", name: "Daniela Porto" },
-  { id: "eduardo", name: "Eduardo Maia" },
-];
-
-const initialScales: Record<string, DayScale> = {
-  "2026-06-08": {
-    brokerIds: ["gabriel", "renato", "juliana"],
-    startBrokerId: "gabriel",
-    startTime: "09:00",
-    endTime: "18:00",
-  },
-  "2026-06-09": {
-    brokerIds: ["renato", "daniela", "eduardo"],
-    startBrokerId: "renato",
-    startTime: "09:00",
-    endTime: "18:00",
-  },
-  "2026-06-10": {
-    brokerIds: ["juliana", "gabriel", "daniela"],
-    startBrokerId: "juliana",
-    startTime: "10:00",
-    endTime: "19:00",
-  },
+const emptyStats: BrokerStats = {
+  forwarded: 0,
+  answered: 0,
+  sameDayReplies: 0,
 };
 
-export function AdminScheduleMock() {
+export function AdminScheduleMock({
+  brokers,
+  initialScales,
+  initialStats,
+}: {
+  brokers: Broker[];
+  initialScales: Record<string, DayScale>;
+  initialStats: Record<string, Record<string, BrokerStats>>;
+}) {
   const [weekAnchor, setWeekAnchor] = useState(() => getStartOfWeek(new Date()));
   const [selectedDays, setSelectedDays] = useState<Set<string>>(new Set());
   const [scales, setScales] = useState<Record<string, DayScale>>(initialScales);
-  const [inactiveDays, setInactiveDays] = useState<Set<string>>(new Set());
   const [modalOpen, setModalOpen] = useState(false);
-  const [draftBrokerIds, setDraftBrokerIds] = useState<string[]>(["gabriel", "renato"]);
-  const [draftStartBrokerId, setDraftStartBrokerId] = useState("gabriel");
+  const [draftBrokerIds, setDraftBrokerIds] = useState<string[]>(brokers.slice(0, 2).map((broker) => broker.id));
+  const [draftStartBrokerId, setDraftStartBrokerId] = useState(brokers[0]?.id ?? "");
   const [draftStartTime, setDraftStartTime] = useState("09:00");
   const [draftEndTime, setDraftEndTime] = useState("18:00");
+  const [message, setMessage] = useState("");
+  const [saving, setSaving] = useState(false);
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, index) => addDays(weekAnchor, index)), [weekAnchor]);
+  const brokerNames = useMemo(() => new Map(brokers.map((broker) => [broker.id, broker.name])), [brokers]);
   const todayKey = toDateKey(new Date());
 
   function toggleDay(dayKey: string) {
@@ -111,7 +99,14 @@ export function AdminScheduleMock() {
     setModalOpen(false);
   }
 
-  function clearDayScale(dayKey: string) {
+  async function clearDayScale(dayKey: string) {
+    setMessage("");
+    const ok = await updateScheduleDay(dayKey, "clear");
+
+    if (!ok) {
+      return;
+    }
+
     setScales((current) => {
       const next = { ...current };
       delete next[dayKey];
@@ -119,17 +114,29 @@ export function AdminScheduleMock() {
     });
   }
 
-  function toggleDayActivity(dayKey: string) {
-    setInactiveDays((current) => {
-      const next = new Set(current);
+  async function toggleDayActivity(dayKey: string) {
+    setMessage("");
+    const ok = await updateScheduleDay(dayKey, "toggle-active");
 
-      if (next.has(dayKey)) {
-        next.delete(dayKey);
-      } else {
-        next.add(dayKey);
-      }
+    if (!ok) {
+      return;
+    }
 
-      return next;
+    setScales((current) => {
+      const currentScale = current[dayKey];
+
+      return {
+        ...current,
+        [dayKey]: currentScale
+          ? { ...currentScale, active: !currentScale.active }
+          : {
+              brokerIds: [],
+              startBrokerId: "",
+              startTime: "09:00",
+              endTime: "18:00",
+              active: false,
+            },
+      };
     });
   }
 
@@ -145,22 +152,46 @@ export function AdminScheduleMock() {
     });
   }
 
-  function applyScale() {
+  async function applyScale() {
     if (selectedDays.size === 0 || draftBrokerIds.length === 0) {
       return;
     }
 
     const startBrokerId = draftBrokerIds.includes(draftStartBrokerId) ? draftStartBrokerId : draftBrokerIds[0];
+    const dates = Array.from(selectedDays);
+    setSaving(true);
+    setMessage("");
+
+    const response = await fetch("/api/admin/schedule", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        dates,
+        brokerIds: draftBrokerIds,
+        startBrokerId,
+        startTime: draftStartTime,
+        endTime: draftEndTime,
+        active: true,
+      }),
+    });
+    setSaving(false);
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => null);
+      setMessage(data?.error ?? "Não foi possível salvar a escala.");
+      return;
+    }
 
     setScales((current) => {
       const next = { ...current };
 
-      selectedDays.forEach((dayKey) => {
+      dates.forEach((dayKey) => {
         next[dayKey] = {
           brokerIds: draftBrokerIds,
           startBrokerId,
           startTime: draftStartTime,
           endTime: draftEndTime,
+          active: true,
         };
       });
 
@@ -168,13 +199,14 @@ export function AdminScheduleMock() {
     });
     clearSelection();
     closeModal();
+    setMessage("Escala salva.");
   }
 
   return (
     <section className="px-3 py-3">
       <div className="flex flex-wrap items-start justify-between gap-4 px-2">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#98743e]">Mock operacional</p>
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#98743e]">Operação comercial</p>
           <h1 className="mt-2 text-3xl font-semibold">Escala de atendimento</h1>
           <p className="mt-2 max-w-3xl text-neutral-600">
             Selecione um ou mais dias da semana e defina quais corretores entram na roleta de atendimento.
@@ -197,6 +229,7 @@ export function AdminScheduleMock() {
           </button>
         </div>
       </div>
+      {message ? <p className="mt-4 rounded-lg bg-white px-4 py-3 text-sm text-neutral-700">{message}</p> : null}
 
       <div className="mt-6">
         <div className="overflow-hidden rounded-lg border border-black/10 bg-white">
@@ -216,7 +249,7 @@ export function AdminScheduleMock() {
               const scale = scales[dayKey];
               const isPast = dayKey < todayKey;
               const selected = selectedDays.has(dayKey);
-              const inactive = inactiveDays.has(dayKey);
+              const inactive = scale ? !scale.active : false;
 
               return (
                 <article
@@ -266,7 +299,7 @@ export function AdminScheduleMock() {
                     <span className="mt-4 block rounded-md border border-dashed border-black/20 px-3 py-2 text-xs text-neutral-500">Não haverá expediente neste dia</span>
                   ) : scale ? (
                     <span className="mt-4 block rounded-md bg-neutral-100 px-3 py-2 text-xs font-semibold text-neutral-700">
-                      {scale.startTime} às {scale.endTime} · início: {getBrokerName(scale.startBrokerId)}
+                      {scale.startTime} às {scale.endTime} · início: {getBrokerName(brokerNames, scale.startBrokerId)}
                     </span>
                   ) : (
                     <span className="mt-4 block rounded-md border border-dashed border-black/20 px-3 py-2 text-xs text-neutral-500">Sem escala definida</span>
@@ -274,11 +307,11 @@ export function AdminScheduleMock() {
 
                   <div className="mt-4 space-y-2">
                     {!inactive && (scale?.brokerIds ?? []).map((brokerId) => {
-                      const stats = getMockStats(dayKey, brokerId);
+                      const stats = initialStats[dayKey]?.[brokerId] ?? emptyStats;
 
                       return (
                         <div className="rounded-md border border-black/10 bg-white px-3 py-2 shadow-sm" key={brokerId}>
-                          <p className="truncate text-sm font-semibold">{getBrokerName(brokerId)}</p>
+                          <p className="truncate text-sm font-semibold">{getBrokerName(brokerNames, brokerId)}</p>
                           {isPast ? (
                             <div className="mt-2 grid grid-cols-3 gap-1 text-center text-[11px] text-neutral-600">
                               <Metric label="Leads" value={stats.forwarded} />
@@ -346,7 +379,7 @@ export function AdminScheduleMock() {
               >
                 {draftBrokerIds.map((brokerId) => (
                   <option key={brokerId} value={brokerId}>
-                    {getBrokerName(brokerId)}
+                    {getBrokerName(brokerNames, brokerId)}
                   </option>
                 ))}
               </select>
@@ -362,7 +395,7 @@ export function AdminScheduleMock() {
                 disabled={selectedDays.size === 0 || draftBrokerIds.length === 0}
                 onClick={applyScale}
               >
-                Salvar escala
+                {saving ? "Salvando..." : "Salvar escala"}
               </button>
             </div>
           </div>
@@ -397,20 +430,18 @@ function Metric({ label, value }: { label: string; value: number }) {
   );
 }
 
-function getBrokerName(brokerId: string) {
-  return brokers.find((broker) => broker.id === brokerId)?.name ?? "Corretor";
+async function updateScheduleDay(date: string, action: "clear" | "toggle-active") {
+  const response = await fetch("/api/admin/schedule", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ date, action }),
+  });
+
+  return response.ok;
 }
 
-function getMockStats(dayKey: string, brokerId: string): BrokerStats {
-  const seed = Array.from(`${dayKey}-${brokerId}`).reduce((sum, char) => sum + char.charCodeAt(0), 0);
-  const forwarded = (seed % 9) + 2;
-  const answered = Math.max(0, forwarded - (seed % 3));
-
-  return {
-    forwarded,
-    answered,
-    sameDayReplies: Math.max(0, answered - (seed % 2)),
-  };
+function getBrokerName(brokerNames: Map<string, string>, brokerId: string) {
+  return brokerNames.get(brokerId) ?? "Corretor";
 }
 
 function getStartOfWeek(date: Date) {

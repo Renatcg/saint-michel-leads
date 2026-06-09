@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { after } from "next/server";
 import { MessageTrigger } from "@prisma/client";
 import { LANDING_SETTINGS_KEY } from "@/lib/landing";
+import { assignLeadByRotation } from "@/lib/lead-routing";
 import { expandTemplateChannels, processImmediateSchedules } from "@/lib/message-delivery";
 import { getPrisma } from "@/lib/prisma";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -63,6 +64,7 @@ export async function POST(request: Request) {
 
   after(async () => {
     try {
+      await assignLeadByRotation(lead.id);
       await createSchedulesAndProcessImmediate(lead.id);
     } catch (error) {
       console.error("Não foi possível processar mensagens do lead.", error);

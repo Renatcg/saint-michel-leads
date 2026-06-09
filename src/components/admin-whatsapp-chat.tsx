@@ -69,6 +69,7 @@ export function AdminWhatsappChat({
   const [syncing, setSyncing] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [notice, setNotice] = useState("");
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const messagesAreaRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -81,6 +82,20 @@ export function AdminWhatsappChat({
 
   const selectedLead = useMemo(() => threads.find((lead) => lead.id === activeLeadId) ?? threads[0] ?? null, [threads, activeLeadId]);
   const groupedThreads = useMemo(() => groupThreadsByAssignee(threads, showAssigneeGroups), [threads, showAssigneeGroups]);
+
+  function toggleGroup(groupLabel: string) {
+    setCollapsedGroups((current) => {
+      const next = new Set(current);
+
+      if (next.has(groupLabel)) {
+        next.delete(groupLabel);
+      } else {
+        next.add(groupLabel);
+      }
+
+      return next;
+    });
+  }
 
   useLayoutEffect(() => {
     if (loadingMessages) {
@@ -323,11 +338,16 @@ export function AdminWhatsappChat({
           {groupedThreads.map((group) => (
             <div key={group.label}>
               {showAssigneeGroups ? (
-                <p className="sticky top-0 z-10 border-b border-black/5 bg-neutral-100 px-3 py-2 text-xs font-bold uppercase tracking-[0.14em] text-neutral-500">
-                  {group.label}
-                </p>
+                <button
+                  className="sticky top-0 z-10 flex w-full items-center justify-between border-b border-black/5 bg-neutral-100 px-3 py-2 text-left text-xs font-bold uppercase tracking-[0.14em] text-neutral-500"
+                  type="button"
+                  onClick={() => toggleGroup(group.label)}
+                >
+                  <span>{group.label}</span>
+                  <span className="text-[10px] tracking-normal">{collapsedGroups.has(group.label) ? "Expandir" : "Recolher"}</span>
+                </button>
               ) : null}
-              {group.leads.map((lead) => (
+              {collapsedGroups.has(group.label) ? null : group.leads.map((lead) => (
                 <button
                   className={`flex w-full gap-3 border-b border-black/5 px-3 py-3 text-left hover:bg-neutral-50 ${
                     lead.id === selectedLead?.id ? "bg-[#f0f2f5]" : ""
