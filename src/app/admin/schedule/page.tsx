@@ -13,7 +13,7 @@ export default async function AdminSchedulePage() {
   }
 
   return (
-    <AdminShell>
+    <AdminShell fullBleed>
       <AdminScheduleMock />
     </AdminShell>
   );

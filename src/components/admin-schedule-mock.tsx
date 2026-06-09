@@ -53,6 +53,8 @@ export function AdminScheduleMock() {
   const [weekAnchor, setWeekAnchor] = useState(() => getStartOfWeek(new Date()));
   const [selectedDays, setSelectedDays] = useState<Set<string>>(new Set());
   const [scales, setScales] = useState<Record<string, DayScale>>(initialScales);
+  const [inactiveDays, setInactiveDays] = useState<Set<string>>(new Set());
+  const [modalOpen, setModalOpen] = useState(false);
   const [draftBrokerIds, setDraftBrokerIds] = useState<string[]>(["gabriel", "renato"]);
   const [draftStartBrokerId, setDraftStartBrokerId] = useState("gabriel");
   const [draftStartTime, setDraftStartTime] = useState("09:00");
@@ -80,6 +82,55 @@ export function AdminScheduleMock() {
 
   function clearSelection() {
     setSelectedDays(new Set());
+  }
+
+  function openBulkModal() {
+    if (selectedDays.size === 0) {
+      return;
+    }
+
+    setModalOpen(true);
+  }
+
+  function openEditModal(dayKey: string) {
+    const scale = scales[dayKey];
+
+    setSelectedDays(new Set([dayKey]));
+
+    if (scale) {
+      setDraftBrokerIds(scale.brokerIds);
+      setDraftStartBrokerId(scale.startBrokerId);
+      setDraftStartTime(scale.startTime);
+      setDraftEndTime(scale.endTime);
+    }
+
+    setModalOpen(true);
+  }
+
+  function closeModal() {
+    setModalOpen(false);
+  }
+
+  function clearDayScale(dayKey: string) {
+    setScales((current) => {
+      const next = { ...current };
+      delete next[dayKey];
+      return next;
+    });
+  }
+
+  function toggleDayActivity(dayKey: string) {
+    setInactiveDays((current) => {
+      const next = new Set(current);
+
+      if (next.has(dayKey)) {
+        next.delete(dayKey);
+      } else {
+        next.add(dayKey);
+      }
+
+      return next;
+    });
   }
 
   function toggleBroker(brokerId: string) {
@@ -116,11 +167,12 @@ export function AdminScheduleMock() {
       return next;
     });
     clearSelection();
+    closeModal();
   }
 
   return (
-    <section>
-      <div className="flex flex-wrap items-start justify-between gap-4">
+    <section className="px-3 py-3">
+      <div className="flex flex-wrap items-start justify-between gap-4 px-2">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#98743e]">Mock operacional</p>
           <h1 className="mt-2 text-3xl font-semibold">Escala de atendimento</h1>
@@ -135,11 +187,19 @@ export function AdminScheduleMock() {
           <button className="rounded-md border border-black/15 px-4 py-2 text-sm font-semibold hover:bg-neutral-100" type="button" onClick={clearSelection}>
             Limpar seleção
           </button>
+          <button
+            className="rounded-md bg-[#98743e] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+            type="button"
+            disabled={selectedDays.size === 0}
+            onClick={openBulkModal}
+          >
+            Definir escala
+          </button>
         </div>
       </div>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-[1fr_340px]">
-        <div className="rounded-lg border border-black/10 bg-white">
+      <div className="mt-6">
+        <div className="overflow-hidden rounded-lg border border-black/10 bg-white">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-black/10 px-4 py-3">
             <button className="text-sm font-semibold text-neutral-700 hover:text-black" type="button" onClick={() => setWeekAnchor(addDays(weekAnchor, -7))}>
               ← Semana anterior
@@ -156,27 +216,55 @@ export function AdminScheduleMock() {
               const scale = scales[dayKey];
               const isPast = dayKey < todayKey;
               const selected = selectedDays.has(dayKey);
+              const inactive = inactiveDays.has(dayKey);
 
               return (
-                <button
-                  className={`flex min-h-[260px] flex-col p-3 text-left transition ${
-                    selected ? "bg-[#f6efe3] ring-2 ring-inset ring-[#98743e]" : "bg-white hover:bg-neutral-50"
+                <article
+                  className={`flex min-h-[620px] flex-col p-3 transition ${
+                    inactive ? "bg-neutral-100 text-neutral-500" : selected ? "bg-[#f6efe3] ring-2 ring-inset ring-[#98743e]" : "bg-white"
                   }`}
                   key={dayKey}
-                  type="button"
-                  onClick={() => toggleDay(dayKey)}
                 >
                   <span className="flex items-start justify-between gap-2">
-                    <span>
+                    <button className="min-w-0 text-left" type="button" onClick={() => toggleDay(dayKey)}>
                       <span className="block text-xs font-semibold uppercase tracking-[0.16em] text-neutral-500">{formatWeekday(day)}</span>
                       <span className="mt-1 block text-2xl font-semibold">{formatDayNumber(day)}</span>
-                    </span>
+                    </button>
                     <span className={`rounded-full px-2 py-1 text-xs font-semibold ${selected ? "bg-[#98743e] text-white" : "bg-neutral-100 text-neutral-600"}`}>
-                      {selected ? "Selecionado" : isPast ? "Fechado" : "Aberto"}
+                      {inactive ? "Sem expediente" : selected ? "Selecionado" : isPast ? "Fechado" : "Aberto"}
                     </span>
                   </span>
 
-                  {scale ? (
+                  <div className="mt-3 flex items-center gap-1">
+                    <IconButton label="Limpar escala" onClick={() => clearDayScale(dayKey)}>
+                      <path d="M5 7h14" />
+                      <path d="M10 11v6" />
+                      <path d="M14 11v6" />
+                      <path d="M6 7l1 14h10l1-14" />
+                      <path d="M9 7V4h6v3" />
+                    </IconButton>
+                    <IconButton label={inactive ? "Ativar expediente" : "Inativar expediente"} onClick={() => toggleDayActivity(dayKey)}>
+                      {inactive ? (
+                        <>
+                          <path d="M5 12h14" />
+                          <path d="M12 5v14" />
+                        </>
+                      ) : (
+                        <>
+                          <path d="M18 6 6 18" />
+                          <path d="m6 6 12 12" />
+                        </>
+                      )}
+                    </IconButton>
+                    <IconButton label="Editar escala" onClick={() => openEditModal(dayKey)}>
+                      <path d="M12 20h9" />
+                      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                    </IconButton>
+                  </div>
+
+                  {inactive ? (
+                    <span className="mt-4 block rounded-md border border-dashed border-black/20 px-3 py-2 text-xs text-neutral-500">Não haverá expediente neste dia</span>
+                  ) : scale ? (
                     <span className="mt-4 block rounded-md bg-neutral-100 px-3 py-2 text-xs font-semibold text-neutral-700">
                       {scale.startTime} às {scale.endTime} · início: {getBrokerName(scale.startBrokerId)}
                     </span>
@@ -185,7 +273,7 @@ export function AdminScheduleMock() {
                   )}
 
                   <div className="mt-4 space-y-2">
-                    {(scale?.brokerIds ?? []).map((brokerId) => {
+                    {!inactive && (scale?.brokerIds ?? []).map((brokerId) => {
                       const stats = getMockStats(dayKey, brokerId);
 
                       return (
@@ -206,74 +294,97 @@ export function AdminScheduleMock() {
                       );
                     })}
                   </div>
-                </button>
+                </article>
               );
             })}
           </div>
         </div>
-
-        <aside className="rounded-lg border border-black/10 bg-white p-5">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-semibold">Definir escala</h2>
-              <p className="mt-1 text-sm text-neutral-600">{selectedDays.size} dia(s) selecionado(s)</p>
-            </div>
-            <span className="rounded-full bg-[#f6efe3] px-3 py-1 text-xs font-semibold text-[#7d5d2f]">Mock</span>
-          </div>
-
-          <div className="mt-5 grid gap-4">
-            <label className="grid gap-1 text-sm font-semibold">
-              Início do atendimento
-              <input className="rounded-md border border-black/15 px-3 py-2 font-normal" type="time" value={draftStartTime} onChange={(event) => setDraftStartTime(event.target.value)} />
-            </label>
-            <label className="grid gap-1 text-sm font-semibold">
-              Fim do atendimento
-              <input className="rounded-md border border-black/15 px-3 py-2 font-normal" type="time" value={draftEndTime} onChange={(event) => setDraftEndTime(event.target.value)} />
-            </label>
-          </div>
-
-          <div className="mt-5">
-            <p className="text-sm font-semibold">Corretores na escala</p>
-            <div className="mt-2 space-y-2">
-              {brokers.map((broker) => (
-                <label className="flex items-center gap-3 rounded-md border border-black/10 px-3 py-2 text-sm" key={broker.id}>
-                  <input checked={draftBrokerIds.includes(broker.id)} type="checkbox" onChange={() => toggleBroker(broker.id)} />
-                  <span className="font-medium">{broker.name}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <label className="mt-5 grid gap-1 text-sm font-semibold">
-            Início da roleta
-            <select
-              className="rounded-md border border-black/15 px-3 py-2 font-normal"
-              value={draftStartBrokerId}
-              onChange={(event) => setDraftStartBrokerId(event.target.value)}
-            >
-              {draftBrokerIds.map((brokerId) => (
-                <option key={brokerId} value={brokerId}>
-                  {getBrokerName(brokerId)}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <button
-            className="mt-6 w-full rounded-md bg-[#98743e] px-4 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
-            type="button"
-            disabled={selectedDays.size === 0 || draftBrokerIds.length === 0}
-            onClick={applyScale}
-          >
-            Definir escala
-          </button>
-
-          <div className="mt-5 rounded-md bg-neutral-100 p-3 text-xs text-neutral-600">
-            Próxima etapa: salvar esta configuração no banco, usar a escala para atribuição automática e alimentar os indicadores com dados reais.
-          </div>
-        </aside>
       </div>
+
+      {modalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
+          <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-lg bg-white p-5 shadow-xl">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-semibold">Definir escala</h2>
+                <p className="mt-1 text-sm text-neutral-600">{selectedDays.size} dia(s) selecionado(s)</p>
+              </div>
+              <button className="text-2xl leading-none text-neutral-500 hover:text-black" type="button" onClick={closeModal} aria-label="Fechar modal">
+                ×
+              </button>
+            </div>
+
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <label className="grid gap-1 text-sm font-semibold">
+                Início do atendimento
+                <input className="rounded-md border border-black/15 px-3 py-2 font-normal" type="time" value={draftStartTime} onChange={(event) => setDraftStartTime(event.target.value)} />
+              </label>
+              <label className="grid gap-1 text-sm font-semibold">
+                Fim do atendimento
+                <input className="rounded-md border border-black/15 px-3 py-2 font-normal" type="time" value={draftEndTime} onChange={(event) => setDraftEndTime(event.target.value)} />
+              </label>
+            </div>
+
+            <div className="mt-5">
+              <p className="text-sm font-semibold">Corretores na escala</p>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                {brokers.map((broker) => (
+                  <label className="flex items-center gap-3 rounded-md border border-black/10 px-3 py-2 text-sm" key={broker.id}>
+                    <input checked={draftBrokerIds.includes(broker.id)} type="checkbox" onChange={() => toggleBroker(broker.id)} />
+                    <span className="font-medium">{broker.name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <label className="mt-5 grid gap-1 text-sm font-semibold">
+              Início da roleta
+              <select
+                className="rounded-md border border-black/15 px-3 py-2 font-normal"
+                value={draftStartBrokerId}
+                onChange={(event) => setDraftStartBrokerId(event.target.value)}
+              >
+                {draftBrokerIds.map((brokerId) => (
+                  <option key={brokerId} value={brokerId}>
+                    {getBrokerName(brokerId)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div className="mt-6 flex flex-wrap justify-end gap-2">
+              <button className="rounded-md border border-black/15 px-4 py-3 font-semibold hover:bg-neutral-100" type="button" onClick={closeModal}>
+                Cancelar
+              </button>
+              <button
+                className="rounded-md bg-[#98743e] px-4 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                type="button"
+                disabled={selectedDays.size === 0 || draftBrokerIds.length === 0}
+                onClick={applyScale}
+              >
+                Salvar escala
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
+  );
+}
+
+function IconButton({ children, label, onClick }: { children: React.ReactNode; label: string; onClick: () => void }) {
+  return (
+    <button
+      className="flex h-8 w-8 items-center justify-center rounded-full text-neutral-600 hover:bg-black/5 hover:text-black"
+      type="button"
+      onClick={onClick}
+      title={label}
+      aria-label={label}
+    >
+      <svg aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24">
+        {children}
+      </svg>
+    </button>
   );
 }
 
