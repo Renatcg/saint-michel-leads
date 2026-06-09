@@ -2,6 +2,7 @@ import { DeliveryStatus, MessageChannel } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdminUser } from "@/lib/admin-auth";
+import { canViewAllLeads } from "@/lib/auth";
 import { sendEvolutionMediaMessage, sendEvolutionTextMessage } from "@/lib/integrations";
 import { getPrisma } from "@/lib/prisma";
 
@@ -66,11 +67,16 @@ export async function POST(request: Request, context: RouteContext) {
       id: true,
       name: true,
       phone: true,
+      assignedToUserId: true,
     },
   });
 
   if (!lead) {
     return NextResponse.json({ error: "Lead não encontrado." }, { status: 404 });
+  }
+
+  if (!canViewAllLeads(user.role) && lead.assignedToUserId !== user.id) {
+    return NextResponse.json({ error: "Acesso não autorizado." }, { status: 403 });
   }
 
   const leadMessageText = formatMessageForLead(senderName, parsed.data.text);
@@ -104,6 +110,13 @@ export async function POST(request: Request, context: RouteContext) {
         provider: "evolution-manual",
         providerId: typeof result?.key?.id === "string" ? result.key.id : null,
       } as never,
+    });
+    await prisma.lead.update({
+      where: { id: lead.id },
+      data: {
+        lastOutboundAt: new Date(),
+        lastHandledAt: new Date(),
+      },
     });
 
     return NextResponse.json({

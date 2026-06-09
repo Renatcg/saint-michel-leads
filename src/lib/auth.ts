@@ -83,6 +83,14 @@ export function canAccessManagement(role: UserRole) {
   return role === "ADMIN" || role === "MANAGER" || role === "SUPERVISOR";
 }
 
+export function canAssignLeads(role: UserRole) {
+  return role === "ADMIN" || role === "SUPERVISOR";
+}
+
+export function canViewAllLeads(role: UserRole) {
+  return role === "ADMIN" || role === "MANAGER" || role === "SUPERVISOR";
+}
+
 export function getAdminNavItems(role: UserRole): Array<{ href: Route; label: string }> {
   if (role === "BROKER" || role === "VIEWER") {
     return [

@@ -9,6 +9,8 @@ type ChatLead = {
   email: string;
   phone: string;
   status: string;
+  assignedToUserId: string | null;
+  assignedToName: string | null;
   createdAt: string;
   lastMessageAt: string | null;
   lastMessage: string;
@@ -48,12 +50,14 @@ export function AdminWhatsappChat({
   initialMessages,
   canChat,
   canSyncHistory,
+  showAssigneeGroups = false,
 }: {
   leads: ChatLead[];
   selectedLeadId: string | null;
   initialMessages: ChatMessage[];
   canChat: boolean;
   canSyncHistory: boolean;
+  showAssigneeGroups?: boolean;
 }) {
   const [threads, setThreads] = useState(leads);
   const [activeLeadId, setActiveLeadId] = useState(selectedLeadId);
@@ -76,6 +80,7 @@ export function AdminWhatsappChat({
   const audioContextRef = useRef<AudioContext | null>(null);
 
   const selectedLead = useMemo(() => threads.find((lead) => lead.id === activeLeadId) ?? threads[0] ?? null, [threads, activeLeadId]);
+  const groupedThreads = useMemo(() => groupThreadsByAssignee(threads, showAssigneeGroups), [threads, showAssigneeGroups]);
 
   useLayoutEffect(() => {
     if (loadingMessages) {
@@ -315,33 +320,42 @@ export function AdminWhatsappChat({
           </div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
-          {threads.map((lead) => (
-            <button
-              className={`flex w-full gap-3 border-b border-black/5 px-3 py-3 text-left hover:bg-neutral-50 ${
-                lead.id === selectedLead?.id ? "bg-[#f0f2f5]" : ""
-              }`}
-              key={lead.id}
-              type="button"
-              onClick={() => selectLead(lead.id)}
-            >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#d9fdd3] text-xs font-bold text-[#1f7a3a]">
-                {getInitials(lead.name)}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="flex items-center justify-between gap-3">
-                  <span className={`truncate text-sm text-neutral-900 ${lead.unreadCount > 0 ? "font-bold" : "font-normal"}`}>{lead.name}</span>
-                  <span className="shrink-0 text-xs text-neutral-500">{formatTime(lead.lastMessageAt)}</span>
-                </span>
-                <span className={`mt-0.5 block truncate text-xs ${lead.unreadCount > 0 ? "font-bold text-neutral-900" : "text-neutral-600"}`}>
-                  {lead.lastMessage || lead.phone}
-                </span>
-                {lead.unreadCount > 0 ? (
-                  <span className="mt-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#25d366] px-1.5 text-xs font-bold text-white">
-                    {lead.unreadCount}
+          {groupedThreads.map((group) => (
+            <div key={group.label}>
+              {showAssigneeGroups ? (
+                <p className="sticky top-0 z-10 border-b border-black/5 bg-neutral-100 px-3 py-2 text-xs font-bold uppercase tracking-[0.14em] text-neutral-500">
+                  {group.label}
+                </p>
+              ) : null}
+              {group.leads.map((lead) => (
+                <button
+                  className={`flex w-full gap-3 border-b border-black/5 px-3 py-3 text-left hover:bg-neutral-50 ${
+                    lead.id === selectedLead?.id ? "bg-[#f0f2f5]" : ""
+                  }`}
+                  key={lead.id}
+                  type="button"
+                  onClick={() => selectLead(lead.id)}
+                >
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#d9fdd3] text-xs font-bold text-[#1f7a3a]">
+                    {getInitials(lead.name)}
                   </span>
-                ) : null}
-              </span>
-            </button>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center justify-between gap-3">
+                      <span className={`truncate text-sm text-neutral-900 ${lead.unreadCount > 0 ? "font-bold" : "font-normal"}`}>{lead.name}</span>
+                      <span className="shrink-0 text-xs text-neutral-500">{formatTime(lead.lastMessageAt)}</span>
+                    </span>
+                    <span className={`mt-0.5 block truncate text-xs ${lead.unreadCount > 0 ? "font-bold text-neutral-900" : "text-neutral-600"}`}>
+                      {lead.lastMessage || lead.phone}
+                    </span>
+                    {lead.unreadCount > 0 ? (
+                      <span className="mt-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#25d366] px-1.5 text-xs font-bold text-white">
+                        {lead.unreadCount}
+                      </span>
+                    ) : null}
+                  </span>
+                </button>
+              ))}
+            </div>
           ))}
         </div>
       </aside>
@@ -479,6 +493,24 @@ function scrollToBottom(element: HTMLDivElement | null, fallback: HTMLDivElement
 
 function sumUnreadMessages(leads: ChatLead[]) {
   return leads.reduce((total, lead) => total + lead.unreadCount, 0);
+}
+
+function groupThreadsByAssignee(leads: ChatLead[], enabled: boolean) {
+  if (!enabled) {
+    return [{ label: "Conversas", leads }];
+  }
+
+  const groups = new Map<string, ChatLead[]>();
+
+  leads.forEach((lead) => {
+    const label = lead.assignedToName ?? "Sem corretor";
+    groups.set(label, [...(groups.get(label) ?? []), lead]);
+  });
+
+  return Array.from(groups.entries()).map(([label, groupedLeads]) => ({
+    label,
+    leads: groupedLeads,
+  }));
 }
 
 function markKnownInboundMessages(messages: ChatMessage[], knownIds: Set<string>) {

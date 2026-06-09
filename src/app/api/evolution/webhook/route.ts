@@ -62,6 +62,12 @@ export async function POST(request: Request) {
       providerId: event.id,
     } as never,
   });
+  await prisma.lead.update({
+    where: { id: lead.id },
+    data: {
+      lastInboundAt: new Date(),
+    },
+  });
 
   return NextResponse.json({ ok: true });
 }

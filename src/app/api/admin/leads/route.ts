@@ -1,13 +1,14 @@
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { requireAdminUser } from "@/lib/admin-auth";
+import { canViewAllLeads } from "@/lib/auth";
 import { leadStatusValues, type LeadStatusValue } from "@/lib/leads";
 import { getPrisma } from "@/lib/prisma";
 
 export async function GET(request: Request) {
-  const { response } = await requireAdminUser();
+  const { response, user } = await requireAdminUser();
 
-  if (response) {
+  if (response || !user) {
     return response;
   }
 
@@ -16,6 +17,10 @@ export async function GET(request: Request) {
   const status = searchParams.get("status")?.trim();
 
   const where: Prisma.LeadWhereInput = {};
+
+  if (!canViewAllLeads(user.role)) {
+    where.assignedToUserId = user.id;
+  }
 
   if (query) {
     where.OR = [

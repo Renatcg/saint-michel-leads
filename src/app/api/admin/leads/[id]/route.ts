@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminUser } from "@/lib/admin-auth";
+import { canEditLeads } from "@/lib/auth";
 import { getPrisma } from "@/lib/prisma";
 import { adminLeadUpdateSchema, normalizePhone } from "@/lib/validators";
 
@@ -10,10 +11,14 @@ type RouteContext = {
 };
 
 export async function PATCH(request: Request, context: RouteContext) {
-  const { response } = await requireAdminUser(["ADMIN", "MANAGER"]);
+  const { response, user } = await requireAdminUser(["ADMIN", "MANAGER", "SUPERVISOR"]);
 
-  if (response) {
+  if (response || !user) {
     return response;
+  }
+
+  if (!canEditLeads(user.role)) {
+    return NextResponse.json({ error: "Acesso não autorizado." }, { status: 403 });
   }
 
   const { id } = await context.params;
@@ -45,10 +50,14 @@ export async function PATCH(request: Request, context: RouteContext) {
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
-  const { response } = await requireAdminUser(["ADMIN", "MANAGER"]);
+  const { response, user } = await requireAdminUser(["ADMIN", "MANAGER", "SUPERVISOR"]);
 
-  if (response) {
+  if (response || !user) {
     return response;
+  }
+
+  if (!canEditLeads(user.role)) {
+    return NextResponse.json({ error: "Acesso não autorizado." }, { status: 403 });
   }
 
   const { id } = await context.params;

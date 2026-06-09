@@ -12,6 +12,9 @@ type LeadRow = {
   status: LeadStatusValue;
   source: string;
   acceptedDataUsage: boolean;
+  assignedToUserId: string | null;
+  assignedToName: string | null;
+  assignmentStatus: string;
   createdAt: string;
   logsCount: number;
   schedulesCount: number;
@@ -19,12 +22,21 @@ type LeadRow = {
 
 type Draft = Pick<LeadRow, "name" | "email" | "phone" | "status" | "source">;
 
+type BrokerOption = {
+  id: string;
+  name: string;
+};
+
 export function AdminLeadsTable({
   initialLeads,
+  brokers,
+  canAssign,
   canEdit,
   canChat,
 }: {
   initialLeads: LeadRow[];
+  brokers: BrokerOption[];
+  canAssign: boolean;
   canEdit: boolean;
   canChat: boolean;
 }) {
@@ -33,6 +45,7 @@ export function AdminLeadsTable({
   const [draft, setDraft] = useState<Draft | null>(null);
   const [message, setMessage] = useState("");
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [assigningId, setAssigningId] = useState<string | null>(null);
 
   function startEditing(lead: LeadRow) {
     setMessage("");
@@ -114,6 +127,40 @@ export function AdminLeadsTable({
     setMessage("Lead excluído.");
   }
 
+  async function assignLead(leadId: string, userId: string) {
+    setAssigningId(leadId);
+    setMessage("");
+
+    const response = await fetch(`/api/admin/leads/${leadId}/assign`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: userId || null }),
+    });
+
+    setAssigningId(null);
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => null);
+      setMessage(data?.error ?? "Não foi possível encaminhar o lead.");
+      return;
+    }
+
+    const data = await response.json();
+    setLeads((current) =>
+      current.map((lead) =>
+        lead.id === leadId
+          ? {
+              ...lead,
+              assignedToUserId: data.lead.assignedToUserId,
+              assignedToName: data.lead.assignedToName,
+              assignmentStatus: data.lead.assignmentStatus,
+            }
+          : lead,
+      ),
+    );
+    setMessage(userId ? "Lead encaminhado." : "Atribuição removida.");
+  }
+
   return (
     <div className="mt-6">
       {message ? <p className="mb-4 rounded-lg bg-white px-4 py-3 text-sm text-neutral-700">{message}</p> : null}
@@ -124,13 +171,14 @@ export function AdminLeadsTable({
       ) : null}
 
       <div className="overflow-hidden rounded-lg border border-black/10 bg-white">
-        <table className="w-full min-w-[920px] border-collapse text-left text-sm">
+        <table className="w-full min-w-[1040px] border-collapse text-left text-sm">
           <thead className="bg-neutral-100 text-neutral-600">
             <tr>
               <th className="px-4 py-3 font-medium">Nome</th>
               <th className="px-4 py-3 font-medium">E-mail</th>
               <th className="px-4 py-3 font-medium">WhatsApp</th>
               <th className="px-4 py-3 font-medium">Status</th>
+              <th className="px-4 py-3 font-medium">Corretor</th>
               <th className="px-4 py-3 font-medium">Origem</th>
               <th className="px-4 py-3 font-medium">Cadastro</th>
               {canEdit || canChat ? <th className="px-4 py-3 font-medium">Ações</th> : null}
@@ -190,6 +238,25 @@ export function AdminLeadsTable({
                       </select>
                     ) : (
                       leadStatusLabels[lead.status]
+                    )}
+                  </td>
+                  <td className="px-4 py-2">
+                    {canAssign ? (
+                      <select
+                        className="w-full min-w-36 rounded-md border border-black/15 px-2 py-2 text-xs outline-none focus:border-[#98743e] disabled:opacity-60"
+                        value={lead.assignedToUserId ?? ""}
+                        disabled={assigningId === lead.id}
+                        onChange={(event) => assignLead(lead.id, event.target.value)}
+                      >
+                        <option value="">Sem corretor</option>
+                        {brokers.map((broker) => (
+                          <option key={broker.id} value={broker.id}>
+                            {broker.name}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span className="text-neutral-700">{lead.assignedToName ?? "Sem corretor"}</span>
                     )}
                   </td>
                   <td className="px-4 py-2">
@@ -272,7 +339,7 @@ export function AdminLeadsTable({
 
             {leads.length === 0 ? (
               <tr>
-                <td className="px-4 py-8 text-center text-neutral-500" colSpan={canEdit || canChat ? 7 : 6}>
+                <td className="px-4 py-8 text-center text-neutral-500" colSpan={canEdit || canChat ? 8 : 7}>
                   Nenhum lead encontrado.
                 </td>
               </tr>

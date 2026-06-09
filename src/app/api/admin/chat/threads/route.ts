@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { requireAdminUser } from "@/lib/admin-auth";
+import { canViewAllLeads } from "@/lib/auth";
 import { getPrisma } from "@/lib/prisma";
 
 type LastMessageRow = {
@@ -12,16 +13,29 @@ type LastMessageRow = {
 };
 
 export async function GET() {
-  const { response } = await requireAdminUser();
+  const { response, user } = await requireAdminUser();
 
-  if (response) {
+  if (response || !user) {
     return response;
   }
 
   const prisma = getPrisma();
   const leads = await prisma.lead.findMany({
+    where: canViewAllLeads(user.role)
+      ? undefined
+      : {
+          assignedToUserId: user.id,
+        },
     orderBy: { updatedAt: "desc" },
     take: 100,
+    include: {
+      assignedTo: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+    },
   });
 
   const lastMessages =
@@ -51,6 +65,8 @@ export async function GET() {
         email: lead.email,
         phone: lead.phone,
         status: lead.status,
+        assignedToUserId: lead.assignedToUserId,
+        assignedToName: lead.assignedTo?.name ?? null,
         createdAt: lead.createdAt.toISOString(),
         lastMessageAt: lastLog?.createdAt.toISOString() ?? null,
         lastMessage: lastLog?.content || (lastLog?.attachmentName ? `Anexo: ${lastLog.attachmentName}` : ""),

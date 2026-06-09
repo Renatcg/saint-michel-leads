@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminUser } from "@/lib/admin-auth";
+import { canViewAllLeads } from "@/lib/auth";
 import { getPrisma } from "@/lib/prisma";
 
 type ChatMessageRow = {
@@ -19,9 +20,9 @@ type ChatMessageRow = {
 };
 
 export async function GET(request: Request) {
-  const { response } = await requireAdminUser();
+  const { response, user } = await requireAdminUser();
 
-  if (response) {
+  if (response || !user) {
     return response;
   }
 
@@ -41,12 +42,17 @@ export async function GET(request: Request) {
       email: true,
       phone: true,
       status: true,
+      assignedToUserId: true,
       createdAt: true,
     },
   });
 
   if (!lead) {
     return NextResponse.json({ error: "Lead não encontrado." }, { status: 404 });
+  }
+
+  if (!canViewAllLeads(user.role) && lead.assignedToUserId !== user.id) {
+    return NextResponse.json({ error: "Acesso não autorizado." }, { status: 403 });
   }
 
   const messages = await prisma.$queryRaw<ChatMessageRow[]>`

@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { AdminLeadsTable } from "@/components/admin-leads-table";
 import { AdminShell } from "@/components/admin-shell";
 import { requireAdminUser } from "@/lib/admin-auth";
-import { canEditLeads } from "@/lib/auth";
+import { canAssignLeads, canEditLeads, canViewAllLeads } from "@/lib/auth";
 import { leadStatusLabels, leadStatusValues, type LeadStatusValue } from "@/lib/leads";
 import { getPrisma } from "@/lib/prisma";
 
@@ -29,8 +29,14 @@ export default async function LeadsPage({ searchParams }: LeadsPageProps) {
   }
   const canEdit = currentUser ? canEditLeads(currentUser.role) : false;
   const canChat = Boolean(currentUser);
+  const canAssign = canAssignLeads(currentUser.role);
+  const canViewAll = canViewAllLeads(currentUser.role);
 
   const where: Prisma.LeadWhereInput = {};
+
+  if (!canViewAll) {
+    where.assignedToUserId = currentUser.id;
+  }
 
   if (query) {
     where.OR = [
@@ -49,6 +55,12 @@ export default async function LeadsPage({ searchParams }: LeadsPageProps) {
     orderBy: { createdAt: "desc" },
     take: 100,
     include: {
+      assignedTo: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
       _count: {
         select: {
           logs: true,
@@ -57,6 +69,21 @@ export default async function LeadsPage({ searchParams }: LeadsPageProps) {
       },
     },
   });
+  const brokers = canAssign
+    ? await prisma.user.findMany({
+        where: {
+          active: true,
+          role: {
+            in: ["BROKER", "VIEWER"],
+          },
+        },
+        orderBy: { name: "asc" },
+        select: {
+          id: true,
+          name: true,
+        },
+      })
+    : [];
 
   return (
     <AdminShell>
@@ -106,6 +133,8 @@ export default async function LeadsPage({ searchParams }: LeadsPageProps) {
         </form>
 
         <AdminLeadsTable
+          brokers={brokers}
+          canAssign={canAssign}
           canChat={canChat}
           canEdit={canEdit}
           initialLeads={leads.map((lead) => ({
@@ -116,6 +145,9 @@ export default async function LeadsPage({ searchParams }: LeadsPageProps) {
             status: lead.status,
             source: lead.source,
             acceptedDataUsage: lead.acceptedDataUsage,
+            assignedToUserId: lead.assignedToUserId,
+            assignedToName: lead.assignedTo?.name ?? null,
+            assignmentStatus: lead.assignmentStatus,
             createdAt: lead.createdAt.toISOString(),
             logsCount: lead._count.logs,
             schedulesCount: lead._count.schedules,

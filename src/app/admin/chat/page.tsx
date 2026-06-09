@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { AdminShell } from "@/components/admin-shell";
 import { AdminWhatsappChat } from "@/components/admin-whatsapp-chat";
 import { requireAdminUser } from "@/lib/admin-auth";
-import { canAccessManagement } from "@/lib/auth";
+import { canAccessManagement, canViewAllLeads } from "@/lib/auth";
 import { getPrisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -51,10 +51,24 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
   }
   const canChat = Boolean(currentUser);
   const canSyncHistory = canAccessManagement(currentUser.role);
+  const canViewAll = canViewAllLeads(currentUser.role);
 
   const leads = await prisma.lead.findMany({
+    where: canViewAll
+      ? undefined
+      : {
+          assignedToUserId: currentUser.id,
+        },
     orderBy: { updatedAt: "desc" },
     take: 100,
+    include: {
+      assignedTo: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+    },
   });
 
   const selectedLeadId = leads.some((lead) => lead.id === requestedLeadId) ? requestedLeadId : leads[0]?.id ?? null;
@@ -119,12 +133,15 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
             email: lead.email,
             phone: lead.phone,
             status: lead.status,
+            assignedToUserId: lead.assignedToUserId,
+            assignedToName: lead.assignedTo?.name ?? null,
             createdAt: lead.createdAt.toISOString(),
             lastMessageAt: lastLog?.createdAt.toISOString() ?? null,
             lastMessage: lastLog?.content || (lastLog?.attachmentName ? `Anexo: ${lastLog.attachmentName}` : ""),
             unreadCount: Number(lastLog?.unreadCount ?? 0),
           };
         })}
+        showAssigneeGroups={canViewAll}
       />
     </AdminShell>
   );
