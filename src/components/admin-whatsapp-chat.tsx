@@ -2,6 +2,7 @@
 
 import { upload } from "@vercel/blob/client";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 type ChatLead = {
   id: string;
@@ -159,13 +160,11 @@ export function AdminWhatsappChat({
       }
     }
 
-    window.addEventListener("click", closeMenu);
-    window.addEventListener("contextmenu", closeMenu);
+    window.addEventListener("pointerdown", closeMenu);
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      window.removeEventListener("click", closeMenu);
-      window.removeEventListener("contextmenu", closeMenu);
+      window.removeEventListener("pointerdown", closeMenu);
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [assignmentMenu]);
@@ -249,6 +248,7 @@ export function AdminWhatsappChat({
     }
 
     event.preventDefault();
+    event.stopPropagation();
     setAssignmentMenu({
       leadId,
       x: Math.min(event.clientX, window.innerWidth - 280),
@@ -607,11 +607,12 @@ export function AdminWhatsappChat({
           </div>
         )}
       </section>
-      {assignmentMenu && assignmentLead ? (
+      {assignmentMenu && assignmentLead && typeof document !== "undefined" ? createPortal(
         <div
           className="fixed z-50 w-72 overflow-hidden rounded-lg border border-black/10 bg-white py-2 text-sm shadow-xl"
           style={{ left: assignmentMenu.x, top: assignmentMenu.y }}
           onClick={(event) => event.stopPropagation()}
+          onPointerDown={(event) => event.stopPropagation()}
           onContextMenu={(event) => event.preventDefault()}
         >
           <div className="border-b border-black/10 px-3 pb-2">
@@ -647,7 +648,8 @@ export function AdminWhatsappChat({
           >
             Remover encaminhamento
           </button>
-        </div>
+        </div>,
+        document.body,
       ) : null}
     </div>
   );
