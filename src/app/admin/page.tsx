@@ -5,6 +5,8 @@ import { getPrisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
+const DASHBOARD_TIME_ZONE = "America/Sao_Paulo";
+
 export default async function AdminDashboardPage() {
   const { response } = await requireAdminUser(["ADMIN", "MANAGER"]);
 
@@ -14,7 +16,7 @@ export default async function AdminDashboardPage() {
 
   const prisma = getPrisma();
   const now = new Date();
-  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfDay = getStartOfTodayInTimeZone(now, DASHBOARD_TIME_ZONE);
   const sevenDaysAgo = new Date(now);
   sevenDaysAgo.setDate(now.getDate() - 7);
 
@@ -49,4 +51,42 @@ export default async function AdminDashboardPage() {
       </section>
     </AdminShell>
   );
+}
+
+function getStartOfTodayInTimeZone(date: Date, timeZone: string) {
+  const parts = getDateTimeParts(date, timeZone);
+  const utcMidnight = Date.UTC(parts.year, parts.month - 1, parts.day, 0, 0, 0);
+  const offset = getTimeZoneOffset(new Date(utcMidnight), timeZone);
+
+  return new Date(utcMidnight - offset);
+}
+
+function getTimeZoneOffset(date: Date, timeZone: string) {
+  const parts = getDateTimeParts(date, timeZone);
+  const zonedAsUtc = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second);
+
+  return zonedAsUtc - date.getTime();
+}
+
+function getDateTimeParts(date: Date, timeZone: string) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+
+  return {
+    year: Number(values.year),
+    month: Number(values.month),
+    day: Number(values.day),
+    hour: Number(values.hour ?? 0),
+    minute: Number(values.minute ?? 0),
+    second: Number(values.second ?? 0),
+  };
 }
