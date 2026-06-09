@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { AdminShell } from "@/components/admin-shell";
 import { AdminWhatsappChat } from "@/components/admin-whatsapp-chat";
 import { requireAdminUser } from "@/lib/admin-auth";
-import { canAccessManagement, canViewAllLeads } from "@/lib/auth";
+import { canAccessManagement, canAssignLeads, canViewAllLeads } from "@/lib/auth";
 import { getPrisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -52,24 +52,43 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
   const canChat = Boolean(currentUser);
   const canSyncHistory = canAccessManagement(currentUser.role);
   const canViewAll = canViewAllLeads(currentUser.role);
+  const canAssign = canAssignLeads(currentUser.role);
 
-  const leads = await prisma.lead.findMany({
-    where: canViewAll
-      ? undefined
-      : {
-          assignedToUserId: currentUser.id,
-        },
-    orderBy: { updatedAt: "desc" },
-    take: 100,
-    include: {
-      assignedTo: {
-        select: {
-          id: true,
-          name: true,
+  const [leads, assignableUsers] = await Promise.all([
+    prisma.lead.findMany({
+      where: canViewAll
+        ? undefined
+        : {
+            assignedToUserId: currentUser.id,
+          },
+      orderBy: { updatedAt: "desc" },
+      take: 100,
+      include: {
+        assignedTo: {
+          select: {
+            id: true,
+            name: true,
+          },
         },
       },
-    },
-  });
+    }),
+    canAssign
+      ? prisma.user.findMany({
+          where: {
+            active: true,
+            role: {
+              in: ["BROKER", "VIEWER", "SUPERVISOR"],
+            },
+          },
+          orderBy: [{ role: "asc" }, { name: "asc" }],
+          select: {
+            id: true,
+            name: true,
+            role: true,
+          },
+        })
+      : Promise.resolve([]),
+  ]);
 
   const selectedLeadId = leads.some((lead) => lead.id === requestedLeadId) ? requestedLeadId : leads[0]?.id ?? null;
   const lastMessages =
@@ -118,6 +137,8 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
         key={selectedLeadId}
         canChat={canChat}
         canSyncHistory={canSyncHistory}
+        canAssignLeads={canAssign}
+        assignableUsers={assignableUsers}
         selectedLeadId={selectedLeadId}
         initialMessages={messages.map((message) => ({
           ...message,

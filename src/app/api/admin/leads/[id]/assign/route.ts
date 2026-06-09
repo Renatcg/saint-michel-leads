@@ -54,14 +54,14 @@ export async function POST(request: Request, context: RouteContext) {
         id: nextUserId,
         active: true,
         role: {
-          in: ["BROKER", "VIEWER"],
+          in: ["BROKER", "VIEWER", "SUPERVISOR"],
         },
       },
       select: { id: true },
     });
 
     if (!broker) {
-      return NextResponse.json({ error: "Corretor não encontrado ou inativo." }, { status: 404 });
+      return NextResponse.json({ error: "Usuário não encontrado ou inativo." }, { status: 404 });
     }
   }
 

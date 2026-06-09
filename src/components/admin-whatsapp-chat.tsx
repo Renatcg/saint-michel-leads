@@ -33,10 +33,22 @@ type ChatMessage = {
   createdAt: string;
 };
 
+type AssignableUser = {
+  id: string;
+  name: string;
+  role: string;
+};
+
 type AttachmentDraft = {
   url: string;
   name: string;
   type: string;
+};
+
+type AssignmentMenu = {
+  leadId: string;
+  x: number;
+  y: number;
 };
 
 type WindowWithAudioFallback = Window &
@@ -50,6 +62,8 @@ export function AdminWhatsappChat({
   initialMessages,
   canChat,
   canSyncHistory,
+  canAssignLeads = false,
+  assignableUsers = [],
   showAssigneeGroups = false,
 }: {
   leads: ChatLead[];
@@ -57,6 +71,8 @@ export function AdminWhatsappChat({
   initialMessages: ChatMessage[];
   canChat: boolean;
   canSyncHistory: boolean;
+  canAssignLeads?: boolean;
+  assignableUsers?: AssignableUser[];
   showAssigneeGroups?: boolean;
 }) {
   const [threads, setThreads] = useState(leads);
@@ -70,6 +86,8 @@ export function AdminWhatsappChat({
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [notice, setNotice] = useState("");
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [assignmentMenu, setAssignmentMenu] = useState<AssignmentMenu | null>(null);
+  const [assigningLeadId, setAssigningLeadId] = useState<string | null>(null);
   const messagesAreaRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -82,6 +100,10 @@ export function AdminWhatsappChat({
 
   const selectedLead = useMemo(() => threads.find((lead) => lead.id === activeLeadId) ?? threads[0] ?? null, [threads, activeLeadId]);
   const groupedThreads = useMemo(() => groupThreadsByAssignee(threads, showAssigneeGroups), [threads, showAssigneeGroups]);
+  const assignmentLead = useMemo(
+    () => (assignmentMenu ? threads.find((lead) => lead.id === assignmentMenu.leadId) ?? null : null),
+    [assignmentMenu, threads],
+  );
 
   function toggleGroup(groupId: string) {
     setCollapsedGroups((current) => {
@@ -121,6 +143,32 @@ export function AdminWhatsappChat({
     textArea.style.height = "44px";
     textArea.style.height = `${Math.min(textArea.scrollHeight, 76)}px`;
   }, [text]);
+
+  useEffect(() => {
+    if (!assignmentMenu) {
+      return;
+    }
+
+    function closeMenu() {
+      setAssignmentMenu(null);
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        closeMenu();
+      }
+    }
+
+    window.addEventListener("click", closeMenu);
+    window.addEventListener("contextmenu", closeMenu);
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("click", closeMenu);
+      window.removeEventListener("contextmenu", closeMenu);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [assignmentMenu]);
 
   useEffect(() => {
     const refresh = async () => {
@@ -193,6 +241,52 @@ export function AdminWhatsappChat({
       unreadTotalRef.current = sumUnreadMessages(threadsData.leads);
       setThreads(threadsData.leads);
     }
+  }
+
+  function openAssignmentMenu(event: React.MouseEvent, leadId: string) {
+    if (!canAssignLeads || assignableUsers.length === 0) {
+      return;
+    }
+
+    event.preventDefault();
+    setAssignmentMenu({
+      leadId,
+      x: Math.min(event.clientX, window.innerWidth - 280),
+      y: Math.min(event.clientY, window.innerHeight - 260),
+    });
+  }
+
+  async function assignLead(leadId: string, userId: string | null) {
+    setAssigningLeadId(leadId);
+    setNotice("");
+
+    const response = await fetch(`/api/admin/leads/${leadId}/assign`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId }),
+    });
+    const data = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      setNotice(data?.error ?? "Não foi possível encaminhar o lead.");
+      setAssigningLeadId(null);
+      setAssignmentMenu(null);
+      return;
+    }
+
+    setThreads((current) =>
+      current.map((lead) =>
+        lead.id === leadId
+          ? {
+              ...lead,
+              assignedToUserId: data.lead?.assignedToUserId ?? null,
+              assignedToName: data.lead?.assignedToName ?? null,
+            }
+          : lead,
+      ),
+    );
+    setAssigningLeadId(null);
+    setAssignmentMenu(null);
   }
 
   async function handleUpload(file: File | undefined) {
@@ -375,6 +469,8 @@ export function AdminWhatsappChat({
                   key={lead.id}
                   type="button"
                   onClick={() => selectLead(lead.id)}
+                  onContextMenu={(event) => openAssignmentMenu(event, lead.id)}
+                  title={canAssignLeads ? "Clique com o botão direito para encaminhar" : undefined}
                 >
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#d9fdd3] text-xs font-bold text-[#1f7a3a]">
                     {getInitials(lead.name)}
@@ -511,6 +607,48 @@ export function AdminWhatsappChat({
           </div>
         )}
       </section>
+      {assignmentMenu && assignmentLead ? (
+        <div
+          className="fixed z-50 w-72 overflow-hidden rounded-lg border border-black/10 bg-white py-2 text-sm shadow-xl"
+          style={{ left: assignmentMenu.x, top: assignmentMenu.y }}
+          onClick={(event) => event.stopPropagation()}
+          onContextMenu={(event) => event.preventDefault()}
+        >
+          <div className="border-b border-black/10 px-3 pb-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-neutral-500">Encaminhar lead</p>
+            <p className="mt-1 truncate font-semibold text-neutral-900">{assignmentLead.name}</p>
+          </div>
+          <div className="max-h-64 overflow-y-auto py-1">
+            {assignableUsers.map((user) => {
+              const selected = assignmentLead.assignedToUserId === user.id;
+
+              return (
+                <button
+                  className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left hover:bg-neutral-100 disabled:opacity-60"
+                  disabled={assigningLeadId === assignmentLead.id || selected}
+                  key={user.id}
+                  type="button"
+                  onClick={() => assignLead(assignmentLead.id, user.id)}
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium text-neutral-900">{user.name}</span>
+                    <span className="text-xs text-neutral-500">{formatRoleLabel(user.role)}</span>
+                  </span>
+                  {selected ? <span className="text-xs font-semibold text-[#1f7a3a]">Atual</span> : null}
+                </button>
+              );
+            })}
+          </div>
+          <button
+            className="flex w-full items-center justify-between border-t border-black/10 px-3 py-2 text-left text-red-700 hover:bg-red-50 disabled:opacity-60"
+            disabled={assigningLeadId === assignmentLead.id || !assignmentLead.assignedToUserId}
+            type="button"
+            onClick={() => assignLead(assignmentLead.id, null)}
+          >
+            Remover encaminhamento
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -774,4 +912,16 @@ function formatTime(value: string | null) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function formatRoleLabel(role: string) {
+  if (role === "SUPERVISOR") {
+    return "Supervisor";
+  }
+
+  if (role === "BROKER" || role === "VIEWER") {
+    return "Corretor";
+  }
+
+  return role;
 }
