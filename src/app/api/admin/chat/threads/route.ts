@@ -35,6 +35,14 @@ export async function GET() {
           name: true,
         },
       },
+      favorites: {
+        where: {
+          userId: user.id,
+        },
+        select: {
+          id: true,
+        },
+      },
     },
   });
 
@@ -67,10 +75,12 @@ export async function GET() {
         status: lead.status,
         assignedToUserId: lead.assignedToUserId,
         assignedToName: lead.assignedTo?.name ?? null,
+        lastOutboundAt: lead.lastOutboundAt?.toISOString() ?? null,
         createdAt: lead.createdAt.toISOString(),
         lastMessageAt: lastLog?.createdAt.toISOString() ?? null,
         lastMessage: lastLog?.content || (lastLog?.attachmentName ? `Anexo: ${lastLog.attachmentName}` : ""),
         unreadCount: Number(lastLog?.unreadCount ?? 0),
+        isFavorite: lead.favorites.length > 0,
       };
     }),
   });

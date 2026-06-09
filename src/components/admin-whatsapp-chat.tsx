@@ -12,10 +12,12 @@ type ChatLead = {
   status: string;
   assignedToUserId: string | null;
   assignedToName: string | null;
+  lastOutboundAt: string | null;
   createdAt: string;
   lastMessageAt: string | null;
   lastMessage: string;
   unreadCount: number;
+  isFavorite: boolean;
 };
 
 type ChatMessage = {
@@ -89,6 +91,7 @@ export function AdminWhatsappChat({
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [assignmentMenu, setAssignmentMenu] = useState<AssignmentMenu | null>(null);
   const [assigningLeadId, setAssigningLeadId] = useState<string | null>(null);
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
   const messagesAreaRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -100,7 +103,8 @@ export function AdminWhatsappChat({
   const audioContextRef = useRef<AudioContext | null>(null);
 
   const selectedLead = useMemo(() => threads.find((lead) => lead.id === activeLeadId) ?? threads[0] ?? null, [threads, activeLeadId]);
-  const groupedThreads = useMemo(() => groupThreadsByAssignee(threads, showAssigneeGroups), [threads, showAssigneeGroups]);
+  const visibleThreads = useMemo(() => (favoritesOnly ? threads.filter((lead) => lead.isFavorite) : threads), [favoritesOnly, threads]);
+  const threadSections = useMemo(() => buildThreadSections(visibleThreads, showAssigneeGroups), [visibleThreads, showAssigneeGroups]);
   const assignmentLead = useMemo(
     () => (assignmentMenu ? threads.find((lead) => lead.id === assignmentMenu.leadId) ?? null : null),
     [assignmentMenu, threads],
@@ -289,6 +293,22 @@ export function AdminWhatsappChat({
     setAssignmentMenu(null);
   }
 
+  async function toggleFavorite(leadId: string, favorite: boolean) {
+    setThreads((current) => current.map((lead) => (lead.id === leadId ? { ...lead, isFavorite: favorite } : lead)));
+
+    const response = await fetch(`/api/admin/leads/${leadId}/favorite`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ favorite }),
+    });
+
+    if (!response.ok) {
+      setThreads((current) => current.map((lead) => (lead.id === leadId ? { ...lead, isFavorite: !favorite } : lead)));
+      const data = await response.json().catch(() => null);
+      setNotice(data?.error ?? "Não foi possível atualizar o favorito.");
+    }
+  }
+
   async function handleUpload(file: File | undefined) {
     if (!file) {
       return;
@@ -404,8 +424,20 @@ export function AdminWhatsappChat({
       <aside className="flex min-h-0 flex-col border-b border-black/10 bg-white lg:border-b-0 lg:border-r">
         <div className="border-b border-black/10 p-4">
           <div className="flex items-center justify-between gap-3">
-            <div>
+            <div className="flex items-center gap-3">
               <h1 className="text-2xl font-semibold">Chat</h1>
+              <button
+                className={`flex h-8 w-8 items-center justify-center rounded-full border text-sm ${
+                  favoritesOnly ? "border-[#98743e] bg-[#98743e] text-white" : "border-black/15 text-neutral-600 hover:bg-neutral-100"
+                }`}
+                type="button"
+                onClick={() => setFavoritesOnly((current) => !current)}
+                title={favoritesOnly ? "Mostrar todas as conversas" : "Mostrar apenas favoritos"}
+                aria-label={favoritesOnly ? "Mostrar todas as conversas" : "Mostrar apenas favoritos"}
+                aria-pressed={favoritesOnly}
+              >
+                <StarIcon filled={favoritesOnly} />
+              </button>
             </div>
             {canSyncHistory ? (
               <button
@@ -429,22 +461,28 @@ export function AdminWhatsappChat({
           </div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
-          {groupedThreads.map((group) => {
-            const collapsed = collapsedGroups.has(group.id);
+          {threadSections.length === 0 ? (
+            <p className="px-4 py-6 text-sm text-neutral-500">
+              {favoritesOnly ? "Nenhuma conversa favoritada." : "Nenhuma conversa encontrada."}
+            </p>
+          ) : null}
+          {threadSections.map((section) => {
+            const collapsed = section.alwaysOpen ? false : collapsedGroups.has(section.id);
 
             return (
-            <div key={group.id}>
-              {showAssigneeGroups ? (
+            <div key={section.id}>
+              {section.showHeader ? (
                 <button
                   className="sticky top-0 z-10 flex w-full items-center justify-between gap-3 border-b border-black/10 bg-neutral-100 px-3 py-2.5 text-left text-xs font-bold uppercase tracking-[0.12em] text-neutral-600 hover:bg-neutral-200"
                   type="button"
-                  onClick={() => toggleGroup(group.id)}
+                  onClick={() => (section.alwaysOpen ? undefined : toggleGroup(section.id))}
                   aria-expanded={!collapsed}
+                  disabled={section.alwaysOpen}
                 >
                   <span className="flex min-w-0 items-center gap-2">
                     <svg
                       aria-hidden="true"
-                      className={`h-3.5 w-3.5 shrink-0 transition-transform ${collapsed ? "-rotate-90" : "rotate-0"}`}
+                      className={`h-3.5 w-3.5 shrink-0 transition-transform ${section.alwaysOpen ? "opacity-30" : collapsed ? "-rotate-90" : "rotate-0"}`}
                       fill="none"
                       stroke="currentColor"
                       strokeLinecap="round"
@@ -454,21 +492,28 @@ export function AdminWhatsappChat({
                     >
                       <path d="m6 9 6 6 6-6" />
                     </svg>
-                    <span className="truncate">{group.label}</span>
+                    <span className="truncate">{section.label}</span>
                   </span>
                   <span className="shrink-0 rounded-full bg-white px-2 py-0.5 text-[10px] tracking-normal text-neutral-600">
-                    {group.leads.length}
+                    {section.leads.length}
                   </span>
                 </button>
               ) : null}
-              {collapsed ? null : group.leads.map((lead) => (
-                <button
+              {collapsed ? null : section.leads.map((lead) => (
+                <div
                   className={`flex w-full gap-3 border-b border-black/5 px-3 py-3 text-left hover:bg-neutral-50 ${
                     lead.id === selectedLead?.id ? "bg-[#f0f2f5]" : ""
                   }`}
                   key={lead.id}
-                  type="button"
+                  role="button"
+                  tabIndex={0}
                   onClick={() => selectLead(lead.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      selectLead(lead.id);
+                    }
+                  }}
                   onContextMenu={(event) => openAssignmentMenu(event, lead.id)}
                   title={canAssignLeads ? "Clique com o botão direito para encaminhar" : undefined}
                 >
@@ -489,7 +534,22 @@ export function AdminWhatsappChat({
                       </span>
                     ) : null}
                   </span>
-                </button>
+                  <button
+                    className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
+                      lead.isFavorite ? "text-[#98743e]" : "text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
+                    }`}
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      toggleFavorite(lead.id, !lead.isFavorite);
+                    }}
+                    title={lead.isFavorite ? "Remover dos favoritos" : "Favoritar conversa"}
+                    aria-label={lead.isFavorite ? "Remover dos favoritos" : "Favoritar conversa"}
+                    aria-pressed={lead.isFavorite}
+                  >
+                    <StarIcon filled={lead.isFavorite} />
+                  </button>
+                </div>
               ))}
             </div>
             );
@@ -676,23 +736,59 @@ function sumUnreadMessages(leads: ChatLead[]) {
   return leads.reduce((total, lead) => total + lead.unreadCount, 0);
 }
 
-function groupThreadsByAssignee(leads: ChatLead[], enabled: boolean) {
-  if (!enabled) {
-    return [{ id: "all", label: "Conversas", leads }];
+function buildThreadSections(leads: ChatLead[], showAssigneeGroups: boolean) {
+  if (!showAssigneeGroups) {
+    return [{ id: "all", label: "Conversas", leads, showHeader: false, alwaysOpen: true }];
   }
 
-  const groups = new Map<string, ChatLead[]>();
+  const newLeads = leads
+    .filter((lead) => !lead.assignedToUserId && !lead.lastOutboundAt)
+    .sort((left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime());
+  const unassignedLeads = leads
+    .filter((lead) => !lead.assignedToUserId && lead.lastOutboundAt)
+    .sort((left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime());
+  const assignedLeads = leads.filter((lead) => lead.assignedToUserId);
+  const brokerGroups = new Map<string, ChatLead[]>();
 
-  leads.forEach((lead) => {
+  assignedLeads.forEach((lead) => {
     const id = lead.assignedToUserId ?? "unassigned";
-    groups.set(id, [...(groups.get(id) ?? []), lead]);
+    brokerGroups.set(id, [...(brokerGroups.get(id) ?? []), lead]);
   });
 
-  return Array.from(groups.entries()).map(([id, groupedLeads]) => ({
-    id,
-    label: groupedLeads[0]?.assignedToName ?? "Sem corretor",
-    leads: groupedLeads,
-  }));
+  const sections = [
+    {
+      id: "new-leads",
+      label: "Novos Leads",
+      leads: newLeads,
+      showHeader: true,
+      alwaysOpen: true,
+    },
+    ...Array.from(brokerGroups.entries())
+      .map(([id, groupedLeads]) => ({
+        id: `broker-${id}`,
+        label: groupedLeads[0]?.assignedToName ?? "Sem corretor",
+        leads: groupedLeads.sort(sortByRecentActivity),
+        showHeader: true,
+        alwaysOpen: false,
+      }))
+      .sort((left, right) => left.label.localeCompare(right.label, "pt-BR")),
+    {
+      id: "unassigned",
+      label: "Sem Corretor",
+      leads: unassignedLeads,
+      showHeader: true,
+      alwaysOpen: false,
+    },
+  ];
+
+  return sections.filter((section) => section.leads.length > 0);
+}
+
+function sortByRecentActivity(left: ChatLead, right: ChatLead) {
+  const leftTime = new Date(left.lastMessageAt ?? left.createdAt).getTime();
+  const rightTime = new Date(right.lastMessageAt ?? right.createdAt).getTime();
+
+  return rightTime - leftTime;
 }
 
 function markKnownInboundMessages(messages: ChatMessage[], knownIds: Set<string>) {
@@ -809,6 +905,14 @@ function DraftPreviewMedia({ attachment }: { attachment: AttachmentDraft }) {
     <span className="flex h-14 w-14 items-center justify-center rounded-md bg-neutral-100 text-xs font-bold uppercase text-neutral-600">
       {attachment.type.includes("pdf") ? "PDF" : "DOC"}
     </span>
+  );
+}
+
+function StarIcon({ filled }: { filled: boolean }) {
+  return (
+    <svg aria-hidden="true" className="h-4 w-4" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeLinejoin="round" strokeWidth="1.8" viewBox="0 0 24 24">
+      <path d="m12 3.5 2.6 5.3 5.9.9-4.2 4.1 1 5.8-5.3-2.8-5.3 2.8 1-5.8-4.2-4.1 5.9-.9L12 3.5Z" />
+    </svg>
   );
 }
 

@@ -70,6 +70,14 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
             name: true,
           },
         },
+        favorites: {
+          where: {
+            userId: currentUser.id,
+          },
+          select: {
+            id: true,
+          },
+        },
       },
     }),
     canAssign
@@ -156,10 +164,12 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
             status: lead.status,
             assignedToUserId: lead.assignedToUserId,
             assignedToName: lead.assignedTo?.name ?? null,
+            lastOutboundAt: lead.lastOutboundAt?.toISOString() ?? null,
             createdAt: lead.createdAt.toISOString(),
             lastMessageAt: lastLog?.createdAt.toISOString() ?? null,
             lastMessage: lastLog?.content || (lastLog?.attachmentName ? `Anexo: ${lastLog.attachmentName}` : ""),
             unreadCount: Number(lastLog?.unreadCount ?? 0),
+            isFavorite: lead.favorites.length > 0,
           };
         })}
         showAssigneeGroups={canViewAll}

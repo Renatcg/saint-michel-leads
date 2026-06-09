@@ -57,6 +57,7 @@ model User {
   assignmentLogsCreated LeadAssignmentLog[]            @relation("LeadAssignmentCreatedBy")
   assignmentLogsFrom    LeadAssignmentLog[]            @relation("LeadAssignmentFromUser")
   assignmentLogsTo      LeadAssignmentLog[]            @relation("LeadAssignmentToUser")
+  favoriteLeads         LeadFavorite[]
 }
 
 model Lead {
@@ -79,10 +80,23 @@ model Lead {
   schedules         MessageSchedule[]
   logs              MessageLog[]
   assignmentLogs    LeadAssignmentLog[]
+  favorites         LeadFavorite[]
 
   @@index([assignedToUserId])
   @@index([assignmentStatus])
   @@index([lastInboundAt])
+}
+
+model LeadFavorite {
+  id        String   @id @default(cuid())
+  leadId    String
+  userId    String
+  createdAt DateTime @default(now())
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([leadId, userId])
+  @@index([userId])
 }
 
 model AttendanceSchedule {
