@@ -83,14 +83,14 @@ export function AdminWhatsappChat({
   const selectedLead = useMemo(() => threads.find((lead) => lead.id === activeLeadId) ?? threads[0] ?? null, [threads, activeLeadId]);
   const groupedThreads = useMemo(() => groupThreadsByAssignee(threads, showAssigneeGroups), [threads, showAssigneeGroups]);
 
-  function toggleGroup(groupLabel: string) {
+  function toggleGroup(groupId: string) {
     setCollapsedGroups((current) => {
       const next = new Set(current);
 
-      if (next.has(groupLabel)) {
-        next.delete(groupLabel);
+      if (next.has(groupId)) {
+        next.delete(groupId);
       } else {
-        next.add(groupLabel);
+        next.add(groupId);
       }
 
       return next;
@@ -335,19 +335,39 @@ export function AdminWhatsappChat({
           </div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
-          {groupedThreads.map((group) => (
-            <div key={group.label}>
+          {groupedThreads.map((group) => {
+            const collapsed = collapsedGroups.has(group.id);
+
+            return (
+            <div key={group.id}>
               {showAssigneeGroups ? (
                 <button
-                  className="sticky top-0 z-10 flex w-full items-center justify-between border-b border-black/5 bg-neutral-100 px-3 py-2 text-left text-xs font-bold uppercase tracking-[0.14em] text-neutral-500"
+                  className="sticky top-0 z-10 flex w-full items-center justify-between gap-3 border-b border-black/10 bg-neutral-100 px-3 py-2.5 text-left text-xs font-bold uppercase tracking-[0.12em] text-neutral-600 hover:bg-neutral-200"
                   type="button"
-                  onClick={() => toggleGroup(group.label)}
+                  onClick={() => toggleGroup(group.id)}
+                  aria-expanded={!collapsed}
                 >
-                  <span>{group.label}</span>
-                  <span className="text-[10px] tracking-normal">{collapsedGroups.has(group.label) ? "Expandir" : "Recolher"}</span>
+                  <span className="flex min-w-0 items-center gap-2">
+                    <svg
+                      aria-hidden="true"
+                      className={`h-3.5 w-3.5 shrink-0 transition-transform ${collapsed ? "-rotate-90" : "rotate-0"}`}
+                      fill="none"
+                      stroke="currentColor"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      viewBox="0 0 24 24"
+                    >
+                      <path d="m6 9 6 6 6-6" />
+                    </svg>
+                    <span className="truncate">{group.label}</span>
+                  </span>
+                  <span className="shrink-0 rounded-full bg-white px-2 py-0.5 text-[10px] tracking-normal text-neutral-600">
+                    {group.leads.length}
+                  </span>
                 </button>
               ) : null}
-              {collapsedGroups.has(group.label) ? null : group.leads.map((lead) => (
+              {collapsed ? null : group.leads.map((lead) => (
                 <button
                   className={`flex w-full gap-3 border-b border-black/5 px-3 py-3 text-left hover:bg-neutral-50 ${
                     lead.id === selectedLead?.id ? "bg-[#f0f2f5]" : ""
@@ -376,7 +396,8 @@ export function AdminWhatsappChat({
                 </button>
               ))}
             </div>
-          ))}
+            );
+          })}
         </div>
       </aside>
 
@@ -517,18 +538,19 @@ function sumUnreadMessages(leads: ChatLead[]) {
 
 function groupThreadsByAssignee(leads: ChatLead[], enabled: boolean) {
   if (!enabled) {
-    return [{ label: "Conversas", leads }];
+    return [{ id: "all", label: "Conversas", leads }];
   }
 
   const groups = new Map<string, ChatLead[]>();
 
   leads.forEach((lead) => {
-    const label = lead.assignedToName ?? "Sem corretor";
-    groups.set(label, [...(groups.get(label) ?? []), lead]);
+    const id = lead.assignedToUserId ?? "unassigned";
+    groups.set(id, [...(groups.get(id) ?? []), lead]);
   });
 
-  return Array.from(groups.entries()).map(([label, groupedLeads]) => ({
-    label,
+  return Array.from(groups.entries()).map(([id, groupedLeads]) => ({
+    id,
+    label: groupedLeads[0]?.assignedToName ?? "Sem corretor",
     leads: groupedLeads,
   }));
 }
