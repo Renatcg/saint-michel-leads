@@ -96,6 +96,7 @@ export function getAdminNavItems(role: UserRole): Array<{ href: Route; label: st
     { href: "/admin/landing", label: "Landing" },
     { href: "/admin/leads", label: "Leads" },
     { href: "/admin/chat", label: "Chat" },
+    { href: "/admin/schedule", label: "Escala" },
     { href: "/admin/messages", label: "Mensagens" },
     { href: "/admin/integrations", label: "Integrações" },
   ];
