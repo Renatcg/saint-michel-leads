@@ -10,6 +10,8 @@ datasource db {
 enum UserRole {
   ADMIN
   MANAGER
+  SUPERVISOR
+  BROKER
   VIEWER
 }
 
@@ -41,29 +43,94 @@ enum DeliveryStatus {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  name         String
-  messageUsername String?
-  email        String   @unique
-  passwordHash String
-  role         UserRole @default(VIEWER)
-  active       Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                    String                         @id @default(cuid())
+  name                  String
+  messageUsername       String?
+  email                 String                         @unique
+  passwordHash          String
+  role                  UserRole                       @default(BROKER)
+  active                Boolean                        @default(true)
+  createdAt             DateTime                       @default(now())
+  updatedAt             DateTime                       @updatedAt
+  assignedLeads         Lead[]                         @relation("LeadAssignee")
+  scheduleAssignments   AttendanceScheduleAssignment[]
+  assignmentLogsCreated LeadAssignmentLog[]            @relation("LeadAssignmentCreatedBy")
+  assignmentLogsFrom    LeadAssignmentLog[]            @relation("LeadAssignmentFromUser")
+  assignmentLogsTo      LeadAssignmentLog[]            @relation("LeadAssignmentToUser")
 }
 
 model Lead {
-  id                String       @id @default(cuid())
+  id                String              @id @default(cuid())
   name              String
   email             String
   phone             String
-  acceptedDataUsage Boolean      @default(true)
-  source            String       @default("landing")
-  status            LeadStatus   @default(NEW)
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
+  acceptedDataUsage Boolean             @default(true)
+  source            String              @default("landing")
+  status            LeadStatus          @default(NEW)
+  assignedToUserId  String?
+  assignedAt        DateTime?
+  lastInboundAt     DateTime?
+  lastOutboundAt    DateTime?
+  lastHandledAt     DateTime?
+  assignmentStatus  String              @default("UNASSIGNED")
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  assignedTo        User?               @relation("LeadAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
   schedules         MessageSchedule[]
   logs              MessageLog[]
+  assignmentLogs    LeadAssignmentLog[]
+
+  @@index([assignedToUserId])
+  @@index([assignmentStatus])
+  @@index([lastInboundAt])
+}
+
+model AttendanceSchedule {
+  id            String                         @id @default(cuid())
+  date          DateTime                       @db.Date
+  startTime     String
+  endTime       String
+  active        Boolean                        @default(true)
+  startUserId   String?
+  rotationIndex Int                            @default(0)
+  createdAt     DateTime                       @default(now())
+  updatedAt     DateTime                       @updatedAt
+  assignments   AttendanceScheduleAssignment[]
+
+  @@unique([date])
+  @@index([active])
+}
+
+model AttendanceScheduleAssignment {
+  id         String             @id @default(cuid())
+  scheduleId String
+  userId     String
+  order      Int
+  active     Boolean            @default(true)
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  schedule   AttendanceSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([scheduleId, userId])
+  @@index([userId])
+}
+
+model LeadAssignmentLog {
+  id          String   @id @default(cuid())
+  leadId      String
+  fromUserId  String?
+  toUserId    String?
+  reason      String
+  createdById String?
+  createdAt   DateTime @default(now())
+  lead        Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  fromUser    User?    @relation("LeadAssignmentFromUser", fields: [fromUserId], references: [id], onDelete: SetNull)
+  toUser      User?    @relation("LeadAssignmentToUser", fields: [toUserId], references: [id], onDelete: SetNull)
+  createdBy   User?    @relation("LeadAssignmentCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([leadId, createdAt])
+  @@index([toUserId])
 }
 
 model IntegrationSettings {
@@ -79,54 +146,54 @@ model IntegrationSettings {
 }
 
 model MessageTemplate {
-  id          String         @id @default(cuid())
-  name        String
-  channel     MessageChannel
-  trigger     MessageTrigger
-  delayDays   Int            @default(0)
-  subject     String?
-  body        String
-  active      Boolean        @default(true)
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-  schedules   MessageSchedule[]
-  logs        MessageLog[]
+  id        String            @id @default(cuid())
+  name      String
+  channel   MessageChannel
+  trigger   MessageTrigger
+  delayDays Int               @default(0)
+  subject   String?
+  body      String
+  active    Boolean           @default(true)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  schedules MessageSchedule[]
+  logs      MessageLog[]
 }
 
 model MessageSchedule {
-  id          String         @id @default(cuid())
-  leadId      String
-  templateId  String
-  channel     MessageChannel
-  status      DeliveryStatus @default(PENDING)
+  id           String          @id @default(cuid())
+  leadId       String
+  templateId   String
+  channel      MessageChannel
+  status       DeliveryStatus  @default(PENDING)
   scheduledFor DateTime
-  sentAt      DateTime?
+  sentAt       DateTime?
   errorMessage String?
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-  lead         Lead           @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  lead         Lead            @relation(fields: [leadId], references: [id], onDelete: Cascade)
   template     MessageTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
 }
 
 model MessageLog {
-  id           String         @id @default(cuid())
-  leadId       String
-  templateId   String?
-  channel      MessageChannel
-  status       DeliveryStatus
-  content      String?
-  attachmentUrl String?
+  id             String           @id @default(cuid())
+  leadId         String
+  templateId     String?
+  channel        MessageChannel
+  status         DeliveryStatus
+  content        String?
+  attachmentUrl  String?
   attachmentName String?
   attachmentType String?
-  direction    String         @default("OUTBOUND")
-  senderName   String?
-  readAt       DateTime?
-  provider     String?
-  providerId   String?
-  errorMessage String?
-  createdAt    DateTime       @default(now())
-  lead          Lead           @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  template      MessageTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  direction      String           @default("OUTBOUND")
+  senderName     String?
+  readAt         DateTime?
+  provider       String?
+  providerId     String?
+  errorMessage   String?
+  createdAt      DateTime         @default(now())
+  lead           Lead             @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  template       MessageTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
 
   @@index([leadId, channel, createdAt])
   @@index([leadId, direction, readAt])

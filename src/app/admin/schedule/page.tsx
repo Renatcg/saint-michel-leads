@@ -6,7 +6,7 @@ import { requireAdminUser } from "@/lib/admin-auth";
 export const dynamic = "force-dynamic";
 
 export default async function AdminSchedulePage() {
-  const { response } = await requireAdminUser(["ADMIN", "MANAGER"]);
+  const { response } = await requireAdminUser(["ADMIN", "MANAGER", "SUPERVISOR"]);
 
   if (response) {
     redirect("/admin");

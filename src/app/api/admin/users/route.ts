@@ -10,7 +10,7 @@ const createUserSchema = z.object({
   messageUsername: z.string().trim().max(80, "Nome de mensagem muito longo.").optional().default(""),
   email: z.string().trim().email("Informe um e-mail válido.").toLowerCase(),
   password: z.string().min(8, "A senha precisa ter pelo menos 8 caracteres."),
-  role: z.enum(UserRole),
+  role: z.preprocess((role) => (role === "VIEWER" ? "BROKER" : role), z.enum(UserRole)),
   active: z.boolean().default(true),
 });
 
@@ -25,9 +25,9 @@ type AdminUserResponse = {
 };
 
 export async function POST(request: Request) {
-  const { response } = await requireAdminUser(["ADMIN"]);
+  const { response, user: currentUser } = await requireAdminUser(["ADMIN", "SUPERVISOR"]);
 
-  if (response) {
+  if (response || !currentUser) {
     return response;
   }
 
@@ -36,6 +36,10 @@ export async function POST(request: Request) {
 
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Dados inválidos." }, { status: 400 });
+  }
+
+  if (!canManageRole(currentUser.role, parsed.data.role)) {
+    return NextResponse.json({ error: "Você não tem permissão para criar este perfil." }, { status: 403 });
   }
 
   const prisma = getPrisma();
@@ -71,4 +75,12 @@ export async function POST(request: Request) {
       createdAt: user.createdAt.toISOString(),
     },
   });
+}
+
+function canManageRole(currentRole: UserRole, targetRole: UserRole) {
+  if (currentRole === "ADMIN") {
+    return true;
+  }
+
+  return currentRole === "SUPERVISOR" && (targetRole === "SUPERVISOR" || targetRole === "BROKER");
 }

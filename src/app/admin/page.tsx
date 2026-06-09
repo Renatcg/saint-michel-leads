@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 const DASHBOARD_TIME_ZONE = "America/Sao_Paulo";
 
 export default async function AdminDashboardPage() {
-  const { response } = await requireAdminUser(["ADMIN", "MANAGER"]);
+  const { response } = await requireAdminUser(["ADMIN", "MANAGER", "SUPERVISOR"]);
 
   if (response) {
     redirect("/admin/leads");

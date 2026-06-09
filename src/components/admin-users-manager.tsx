@@ -7,19 +7,24 @@ type UserRow = {
   name: string;
   messageUsername: string;
   email: string;
-  role: "ADMIN" | "MANAGER" | "VIEWER";
+  role: UserRole;
   active: boolean;
   createdAt: string;
 };
 
+type UserRole = "ADMIN" | "MANAGER" | "SUPERVISOR" | "BROKER" | "VIEWER";
+
 const roleLabels = {
   ADMIN: "Admin",
   MANAGER: "Manager",
-  VIEWER: "Viewer",
+  SUPERVISOR: "Supervisor",
+  BROKER: "Corretor",
+  VIEWER: "Corretor",
 };
 
-export function AdminUsersManager({ initialUsers }: { initialUsers: UserRow[] }) {
+export function AdminUsersManager({ currentUserRole, initialUsers }: { currentUserRole: UserRole; initialUsers: UserRow[] }) {
   const [users, setUsers] = useState(initialUsers);
+  const roleOptions = currentUserRole === "ADMIN" ? adminRoleOptions : supervisorRoleOptions;
   const [open, setOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserRow | null>(null);
   const [message, setMessage] = useState("");
@@ -29,7 +34,7 @@ export function AdminUsersManager({ initialUsers }: { initialUsers: UserRow[] })
     messageUsername: "",
     email: "",
     password: "",
-    role: "VIEWER" as UserRow["role"],
+    role: roleOptions[0].value,
     active: true,
   });
 
@@ -54,7 +59,7 @@ export function AdminUsersManager({ initialUsers }: { initialUsers: UserRow[] })
     const data = await response.json();
     setUsers((current) => [data.user, ...current]);
     setOpen(false);
-    setForm({ name: "", messageUsername: "", email: "", password: "", role: "VIEWER", active: true });
+    setForm({ name: "", messageUsername: "", email: "", password: "", role: roleOptions[0].value, active: true });
     setMessage("Usuário criado.");
   }
 
@@ -75,7 +80,7 @@ export function AdminUsersManager({ initialUsers }: { initialUsers: UserRow[] })
   function closeModal() {
     setOpen(false);
     setEditingUser(null);
-    setForm({ name: "", messageUsername: "", email: "", password: "", role: "VIEWER", active: true });
+    setForm({ name: "", messageUsername: "", email: "", password: "", role: roleOptions[0].value, active: true });
   }
 
   async function saveUser() {
@@ -189,7 +194,7 @@ export function AdminUsersManager({ initialUsers }: { initialUsers: UserRow[] })
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-xl font-semibold">{editingUser ? "Editar usuário" : "Criar usuário"}</h2>
-                <p className="mt-1 text-sm text-neutral-600">Admins gerenciam tudo. Viewers acessam leads e chat.</p>
+                <p className="mt-1 text-sm text-neutral-600">Supervisores criam supervisores e corretores. Corretores acessam os leads atribuídos.</p>
               </div>
               <button className="rounded-md border border-black/15 px-3 py-2 text-sm font-semibold" type="button" onClick={closeModal}>
                 Fechar
@@ -217,9 +222,11 @@ export function AdminUsersManager({ initialUsers }: { initialUsers: UserRow[] })
                   value={form.role}
                   onChange={(event) => setForm({ ...form, role: event.target.value as UserRow["role"] })}
                 >
-                  <option value="VIEWER">Viewer</option>
-                  <option value="MANAGER">Manager</option>
-                  <option value="ADMIN">Admin</option>
+                  {roleOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
                 </select>
               </label>
               <label className="flex items-center gap-2 text-sm font-medium text-neutral-700">
@@ -242,6 +249,18 @@ export function AdminUsersManager({ initialUsers }: { initialUsers: UserRow[] })
     </div>
   );
 }
+
+const adminRoleOptions: Array<{ value: UserRole; label: string }> = [
+  { value: "BROKER", label: "Corretor" },
+  { value: "SUPERVISOR", label: "Supervisor" },
+  { value: "MANAGER", label: "Manager" },
+  { value: "ADMIN", label: "Admin" },
+];
+
+const supervisorRoleOptions: Array<{ value: UserRole; label: string }> = [
+  { value: "BROKER", label: "Corretor" },
+  { value: "SUPERVISOR", label: "Supervisor" },
+];
 
 function IconEdit() {
   return (

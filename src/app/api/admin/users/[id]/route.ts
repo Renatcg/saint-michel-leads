@@ -10,7 +10,7 @@ const updateUserSchema = z.object({
   messageUsername: z.string().trim().max(80, "Nome de mensagem muito longo.").optional().default(""),
   email: z.string().trim().email("Informe um e-mail válido.").toLowerCase(),
   password: z.string().min(8, "A senha precisa ter pelo menos 8 caracteres.").optional().or(z.literal("")),
-  role: z.enum(UserRole),
+  role: z.preprocess((role) => (role === "VIEWER" ? "BROKER" : role), z.enum(UserRole)),
   active: z.boolean(),
 });
 
@@ -31,9 +31,9 @@ type RouteContext = {
 };
 
 export async function PATCH(request: Request, context: RouteContext) {
-  const { response } = await requireAdminUser(["ADMIN"]);
+  const { response, user: currentUser } = await requireAdminUser(["ADMIN", "SUPERVISOR"]);
 
-  if (response) {
+  if (response || !currentUser) {
     return response;
   }
 
@@ -50,6 +50,10 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   if (!current) {
     return NextResponse.json({ error: "Usuário não encontrado." }, { status: 404 });
+  }
+
+  if (!canManageUser(currentUser.role, current.role, parsed.data.role)) {
+    return NextResponse.json({ error: "Você não tem permissão para alterar este usuário." }, { status: 403 });
   }
 
   if (current.role === "ADMIN" && (parsed.data.role !== "ADMIN" || !parsed.data.active)) {
@@ -103,9 +107,9 @@ export async function PATCH(request: Request, context: RouteContext) {
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
-  const { response } = await requireAdminUser(["ADMIN"]);
+  const { response, user: currentUser } = await requireAdminUser(["ADMIN", "SUPERVISOR"]);
 
-  if (response) {
+  if (response || !currentUser) {
     return response;
   }
 
@@ -115,6 +119,10 @@ export async function DELETE(_request: Request, context: RouteContext) {
 
   if (!current) {
     return NextResponse.json({ error: "Usuário não encontrado." }, { status: 404 });
+  }
+
+  if (!canManageUser(currentUser.role, current.role, current.role)) {
+    return NextResponse.json({ error: "Você não tem permissão para excluir este usuário." }, { status: 403 });
   }
 
   if (current.role === "ADMIN" && current.active) {
@@ -134,4 +142,16 @@ export async function DELETE(_request: Request, context: RouteContext) {
   await prisma.user.delete({ where: { id } });
 
   return NextResponse.json({ ok: true });
+}
+
+function canManageUser(currentRole: UserRole, existingRole: UserRole, targetRole: UserRole) {
+  if (currentRole === "ADMIN") {
+    return true;
+  }
+
+  return (
+    currentRole === "SUPERVISOR" &&
+    (existingRole === "SUPERVISOR" || existingRole === "BROKER" || existingRole === "VIEWER") &&
+    (targetRole === "SUPERVISOR" || targetRole === "BROKER")
+  );
 }

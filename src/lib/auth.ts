@@ -72,19 +72,19 @@ export async function getCurrentUser() {
 }
 
 export function canManageUsers(role: UserRole) {
-  return role === "ADMIN";
+  return role === "ADMIN" || role === "SUPERVISOR";
 }
 
 export function canEditLeads(role: UserRole) {
-  return role === "ADMIN" || role === "MANAGER";
+  return role === "ADMIN" || role === "MANAGER" || role === "SUPERVISOR";
 }
 
 export function canAccessManagement(role: UserRole) {
-  return role === "ADMIN" || role === "MANAGER";
+  return role === "ADMIN" || role === "MANAGER" || role === "SUPERVISOR";
 }
 
 export function getAdminNavItems(role: UserRole): Array<{ href: Route; label: string }> {
-  if (role === "VIEWER") {
+  if (role === "BROKER" || role === "VIEWER") {
     return [
       { href: "/admin/leads", label: "Leads" },
       { href: "/admin/chat", label: "Chat" },
@@ -101,7 +101,7 @@ export function getAdminNavItems(role: UserRole): Array<{ href: Route; label: st
     { href: "/admin/integrations", label: "Integrações" },
   ];
 
-  if (role === "ADMIN") {
+  if (role === "ADMIN" || role === "SUPERVISOR") {
     items.splice(4, 0, { href: "/admin/users", label: "Usuários" });
   }
 
