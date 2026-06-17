@@ -119,6 +119,48 @@ export function AdminIntegrationsSettings({
       </section>
 
       <section className="rounded-lg border border-black/10 bg-white p-5">
+        <h2 className="text-xl font-semibold">WhatsApp</h2>
+        <p className="mt-2 text-sm leading-6 text-neutral-600">
+          Escolha a API usada para envio e quais provedores podem alimentar o histórico do chat.
+        </p>
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <label className="block">
+            <span className="mb-2 block text-sm font-medium text-neutral-700">Provedor ativo para envio</span>
+            <select
+              className="w-full rounded-lg border border-black/15 px-3 py-3 outline-none focus:border-[#98743e]"
+              disabled={!canEdit}
+              value={integrations.whatsappProvider}
+              onChange={(event) => update({ whatsappProvider: event.target.value as AdminIntegrationSettings["whatsappProvider"] })}
+            >
+              <option value="EVOLUTION">Evolution API</option>
+              <option value="WUZ">WUZ</option>
+            </select>
+          </label>
+          <div className="rounded-lg border border-black/10 bg-neutral-50 p-3">
+            <span className="mb-2 block text-sm font-medium text-neutral-700">Captura de mensagens</span>
+            <label className="flex items-center gap-2 text-sm text-neutral-700">
+              <input
+                checked={integrations.captureEvolution}
+                disabled={!canEdit}
+                type="checkbox"
+                onChange={(event) => update({ captureEvolution: event.target.checked })}
+              />
+              Aceitar mensagens da Evolution API
+            </label>
+            <label className="mt-2 flex items-center gap-2 text-sm text-neutral-700">
+              <input
+                checked={integrations.captureWuz}
+                disabled={!canEdit}
+                type="checkbox"
+                onChange={(event) => update({ captureWuz: event.target.checked })}
+              />
+              Aceitar mensagens da WUZ
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-black/10 bg-white p-5">
         <h2 className="text-xl font-semibold">Evolution API</h2>
         <p className="mt-2 text-sm leading-6 text-neutral-600">
           Dados que serão usados para envio de WhatsApp pela Evolution API. A API Key não é exibida depois de configurada.
@@ -176,6 +218,43 @@ export function AdminIntegrationsSettings({
             </button>
           ) : null}
           {testMessage ? <p className="mt-3 text-sm text-neutral-600">{testMessage}</p> : null}
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-black/10 bg-white p-5">
+        <h2 className="text-xl font-semibold">WUZ</h2>
+        <p className="mt-2 text-sm leading-6 text-neutral-600">
+          Configure a WUZ para capturar mensagens em paralelo. O envio pela WUZ será ativado quando o endpoint de envio da documentação for configurado.
+        </p>
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <TextInput
+            label="URL da API"
+            value={integrations.wuzApiUrl}
+            canEdit={canEdit}
+            placeholder="https://utilitarios-wuzapi.xku2lc.easypanel.host/api"
+            onChange={(value) => update({ wuzApiUrl: value })}
+          />
+          <TextInput
+            label="Token"
+            value={integrations.wuzApiToken}
+            canEdit={canEdit}
+            placeholder="Token da WUZ"
+            secret
+            onChange={(value) => update({ wuzApiToken: value })}
+          />
+          <TextInput
+            label="Instância / identificação"
+            value={integrations.wuzInstanceName}
+            canEdit={canEdit}
+            placeholder="Opcional, conforme a WUZ"
+            onChange={(value) => update({ wuzInstanceName: value })}
+          />
+          <div>
+            <span className="mb-2 block text-sm font-medium text-neutral-700">Webhook WUZ</span>
+            <div className="min-h-12 break-all rounded-lg border border-black/10 bg-neutral-50 px-3 py-3 text-sm text-neutral-600">
+              /api/wuz/webhook
+            </div>
+          </div>
         </div>
       </section>
 

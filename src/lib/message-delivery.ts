@@ -1,6 +1,6 @@
 import { DeliveryStatus, MessageChannel, MessageTrigger, type Lead, type MessageTemplate } from "@prisma/client";
 import { Resend } from "resend";
-import { sendEvolutionTextMessage } from "@/lib/integrations";
+import { getActiveWhatsappProvider, sendWhatsappTextMessage } from "@/lib/integrations";
 import { buildSalesContactUrl, getLandingSettings } from "@/lib/landing";
 import { getPrisma } from "@/lib/prisma";
 import { markdownToHtml } from "@/lib/rich-content";
@@ -156,7 +156,9 @@ async function sendWhatsappSchedule(schedule: TemplateWithLead) {
     const salesContactUrl = await getSalesContactUrl();
     const renderedBody = renderMessageTemplate(schedule.template.body, schedule.lead, { salesContactUrl });
     const text = stripRichContent(replaceSalesContactLinks(renderedBody, salesContactUrl));
-    const result = await sendEvolutionTextMessage({
+    const whatsappProvider = await getActiveWhatsappProvider();
+    const providerPrefix = whatsappProvider === "WUZ" ? "wuz" : "evolution";
+    const result = await sendWhatsappTextMessage({
       number: schedule.lead.phone,
       text,
     });
@@ -171,8 +173,8 @@ async function sendWhatsappSchedule(schedule: TemplateWithLead) {
           content: text,
           direction: "OUTBOUND",
           readAt: new Date(),
-          provider: "evolution",
-          providerId: result?.key?.id,
+          provider: providerPrefix,
+          providerId: extractProviderMessageId(result),
         } as never,
       }),
       prisma.messageSchedule.update({
@@ -197,7 +199,7 @@ async function sendWhatsappSchedule(schedule: TemplateWithLead) {
           content: schedule.template.body,
           direction: "OUTBOUND",
           readAt: new Date(),
-          provider: "evolution",
+          provider: "whatsapp",
           errorMessage,
         } as never,
       }),
@@ -212,15 +214,32 @@ async function sendWhatsappSchedule(schedule: TemplateWithLead) {
   }
 }
 
+function extractProviderMessageId(result: unknown) {
+  if (!result || typeof result !== "object") {
+    return null;
+  }
+
+  const record = result as Record<string, unknown>;
+  const key = record.key && typeof record.key === "object" ? (record.key as Record<string, unknown>) : null;
+
+  return typeof key?.id === "string"
+    ? key.id
+    : typeof record.id === "string"
+      ? record.id
+      : typeof record.messageId === "string"
+        ? record.messageId
+        : null;
+}
+
 async function getResendSettings(): Promise<ResendSettings | null> {
   const prisma = getPrisma();
   const settings = await prisma.integrationSettings.findFirst({
     orderBy: { updatedAt: "desc" },
   });
 
-  const apiKey = process.env.RESEND_API_KEY || settings?.resendApiKey;
-  const fromEmail = process.env.RESEND_FROM_EMAIL || settings?.resendFromEmail;
-  const fromName = process.env.RESEND_FROM_NAME || settings?.resendFromName || "Saint Michel Construtora";
+  const apiKey = settings?.resendApiKey || process.env.RESEND_API_KEY;
+  const fromEmail = settings?.resendFromEmail || process.env.RESEND_FROM_EMAIL;
+  const fromName = settings?.resendFromName || process.env.RESEND_FROM_NAME || "Saint Michel Construtora";
 
   if (!apiKey || !fromEmail) {
     return null;

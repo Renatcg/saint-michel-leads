@@ -152,9 +152,15 @@ model IntegrationSettings {
   resendApiKey          String?
   resendFromEmail       String?
   resendFromName        String?
+  whatsappProvider      String   @default("EVOLUTION")
+  captureEvolution      Boolean  @default(true)
+  captureWuz            Boolean  @default(false)
   evolutionApiUrl       String?
   evolutionApiKey       String?
   evolutionInstanceName String?
+  wuzApiUrl             String?
+  wuzApiToken           String?
+  wuzInstanceName       String?
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 }
