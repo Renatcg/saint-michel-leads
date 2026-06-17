@@ -35,6 +35,16 @@ type StoredIntegrationSettingsRow = {
   wuzInstanceName: string | null;
 };
 
+type LegacyIntegrationSettingsRow = {
+  id: string;
+  resendApiKey: string | null;
+  resendFromEmail: string | null;
+  resendFromName: string | null;
+  evolutionApiUrl: string | null;
+  evolutionApiKey: string | null;
+  evolutionInstanceName: string | null;
+};
+
 export const defaultIntegrationSettings: AdminIntegrationSettings = {
   resendApiKey: "",
   resendFromEmail: "",
@@ -75,24 +85,30 @@ export async function getIntegrationSettings(): Promise<AdminIntegrationSettings
 export async function getStoredIntegrationSettings(): Promise<AdminIntegrationSettings> {
   const prisma = getPrisma();
   const [settings] = await prisma.$queryRaw<StoredIntegrationSettingsRow[]>`
-    SELECT
-      "id",
-      "resendApiKey",
-      "resendFromEmail",
-      "resendFromName",
-      "whatsappProvider",
-      "captureEvolution",
-      "captureWuz",
-      "evolutionApiUrl",
-      "evolutionApiKey",
-      "evolutionInstanceName",
-      "wuzApiUrl",
-      "wuzApiToken",
-      "wuzInstanceName"
-    FROM "IntegrationSettings"
-    ORDER BY "updatedAt" DESC
-    LIMIT 1
-  `;
+      SELECT
+        "id",
+        "resendApiKey",
+        "resendFromEmail",
+        "resendFromName",
+        "whatsappProvider",
+        "captureEvolution",
+        "captureWuz",
+        "evolutionApiUrl",
+        "evolutionApiKey",
+        "evolutionInstanceName",
+        "wuzApiUrl",
+        "wuzApiToken",
+        "wuzInstanceName"
+      FROM "IntegrationSettings"
+      ORDER BY "updatedAt" DESC
+      LIMIT 1
+    `.catch(async (error: unknown) => {
+      if (!isMissingIntegrationSettingsColumnError(error)) {
+        throw error;
+      }
+
+      return getLegacyStoredIntegrationSettingsRows();
+    });
 
   return {
     resendApiKey: settings?.resendApiKey || "",
@@ -110,6 +126,33 @@ export async function getStoredIntegrationSettings(): Promise<AdminIntegrationSe
   };
 }
 
+async function getLegacyStoredIntegrationSettingsRows(): Promise<StoredIntegrationSettingsRow[]> {
+  const prisma = getPrisma();
+  const rows = await prisma.$queryRaw<LegacyIntegrationSettingsRow[]>`
+    SELECT
+      "id",
+      "resendApiKey",
+      "resendFromEmail",
+      "resendFromName",
+      "evolutionApiUrl",
+      "evolutionApiKey",
+      "evolutionInstanceName"
+    FROM "IntegrationSettings"
+    ORDER BY "updatedAt" DESC
+    LIMIT 1
+  `;
+
+  return rows.map((settings) => ({
+    ...settings,
+    whatsappProvider: defaultIntegrationSettings.whatsappProvider,
+    captureEvolution: defaultIntegrationSettings.captureEvolution,
+    captureWuz: defaultIntegrationSettings.captureWuz,
+    wuzApiUrl: defaultIntegrationSettings.wuzApiUrl,
+    wuzApiToken: "",
+    wuzInstanceName: "",
+  }));
+}
+
 export async function saveIntegrationSettings(settings: Partial<AdminIntegrationSettings>) {
   const prisma = getPrisma();
   const [existing] = await prisma.$queryRaw<StoredIntegrationSettingsRow[]>`
@@ -121,7 +164,13 @@ export async function saveIntegrationSettings(settings: Partial<AdminIntegration
     FROM "IntegrationSettings"
     ORDER BY "updatedAt" DESC
     LIMIT 1
-  `;
+  `.catch((error: unknown) => {
+    if (isMissingIntegrationSettingsColumnError(error)) {
+      throw new Error("A migração das integrações WhatsApp ainda não foi aplicada. Rode prisma migrate deploy antes de salvar WUZ.");
+    }
+
+    throw error;
+  });
   const normalized = normalizeIntegrationSettings(settings);
 
   if (shouldPreserveSecret(settings.resendApiKey)) {
@@ -456,6 +505,19 @@ function trimTrailingSlash(value: string) {
 
 function shouldPreserveSecret(value: string | undefined) {
   return !value || value.includes("••••");
+}
+
+function isMissingIntegrationSettingsColumnError(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const maybeError = error as { code?: unknown; message?: unknown; meta?: { code?: unknown; column?: unknown } };
+  const message = String(maybeError.message || "");
+  const code = String(maybeError.code || maybeError.meta?.code || "");
+  const column = String(maybeError.meta?.column || "");
+
+  return code === "42703" || code === "P2022" || column.includes("IntegrationSettings") || message.includes("does not exist");
 }
 
 function normalizeWhatsappProvider(value: string | undefined | null): WhatsappProvider {

@@ -22,8 +22,14 @@ export async function PATCH(request: Request) {
   }
 
   const payload = await request.json().catch(() => null);
-  await saveIntegrationSettings(payload?.integrations ?? payload ?? {});
   const landing = await getLandingSettings();
+
+  try {
+    await saveIntegrationSettings(payload?.integrations ?? payload ?? {});
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Não foi possível salvar as integrações.";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
 
   if (typeof payload?.salesPhone === "string") {
     await saveLandingSettings({ ...landing, salesPhone: payload.salesPhone });
