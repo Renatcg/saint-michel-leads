@@ -312,11 +312,26 @@ export async function sendWuzTextMessage({ number, text }: { number: string; tex
     throw new Error("WUZ não configurada. Cadastre URL e token na aba Integrações.");
   }
 
-  void settings;
-  void number;
-  void text;
+  const response = await fetch(`${settings.apiUrl}/chat/send/text`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      token: settings.apiToken,
+    },
+    body: JSON.stringify({
+      Phone: normalizeWhatsappNumber(number),
+      Body: text,
+      LinkPreview: false,
+    }),
+  });
 
-  throw new Error("Envio pela WUZ ainda precisa do endpoint de envio da documentação.");
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok || data?.success === false) {
+    throw new Error(formatWuzError(data?.error ?? data?.message ?? data?.data ?? `WUZ retornou status ${response.status}.`));
+  }
+
+  return data;
 }
 
 export async function sendWuzMediaMessage({
@@ -485,6 +500,19 @@ function formatEvolutionError(message: unknown): string {
   }
 
   return String(message || "Erro desconhecido da Evolution API.");
+}
+
+function formatWuzError(message: unknown): string {
+  if (Array.isArray(message)) {
+    return message.map((item: unknown) => formatWuzError(item)).join(", ");
+  }
+
+  if (message && typeof message === "object") {
+    const record = message as Record<string, unknown>;
+    return String(record.Details || record.details || record.message || record.error || JSON.stringify(record));
+  }
+
+  return String(message || "Erro desconhecido da WUZ.");
 }
 
 function getEvolutionMediaType(mimeType: string) {
