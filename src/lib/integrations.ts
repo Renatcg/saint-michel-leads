@@ -312,7 +312,7 @@ export async function sendWuzTextMessage({ number, text }: { number: string; tex
     throw new Error("WUZ não configurada. Cadastre URL e token na aba Integrações.");
   }
 
-  const response = await fetch(`${settings.apiUrl}/chat/send/text`, {
+  const response = await fetch(`${getWuzRequestBaseUrl(settings.apiUrl)}/chat/send/text`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -539,6 +539,10 @@ export function normalizeWhatsappNumber(phone: string) {
 
 function trimTrailingSlash(value: string) {
   return value.replace(/\/+$/, "");
+}
+
+function getWuzRequestBaseUrl(apiUrl: string) {
+  return trimTrailingSlash(apiUrl).replace(/\/api$/i, "");
 }
 
 function shouldPreserveSecret(value: string | undefined) {
