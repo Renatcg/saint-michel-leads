@@ -164,9 +164,19 @@ export async function saveIntegrationSettings(settings: Partial<AdminIntegration
     FROM "IntegrationSettings"
     ORDER BY "updatedAt" DESC
     LIMIT 1
-  `.catch((error: unknown) => {
+  `.catch(async (error: unknown) => {
     if (isMissingIntegrationSettingsColumnError(error)) {
-      throw new Error("A migração das integrações WhatsApp ainda não foi aplicada. Rode prisma migrate deploy antes de salvar WUZ.");
+      await ensureIntegrationSettingsWhatsappColumns();
+      return prisma.$queryRaw<StoredIntegrationSettingsRow[]>`
+        SELECT
+          "id",
+          "resendApiKey",
+          "evolutionApiKey",
+          "wuzApiToken"
+        FROM "IntegrationSettings"
+        ORDER BY "updatedAt" DESC
+        LIMIT 1
+      `;
     }
 
     throw error;
@@ -505,6 +515,17 @@ function trimTrailingSlash(value: string) {
 
 function shouldPreserveSecret(value: string | undefined) {
   return !value || value.includes("••••");
+}
+
+async function ensureIntegrationSettingsWhatsappColumns() {
+  const prisma = getPrisma();
+
+  await prisma.$executeRawUnsafe(`ALTER TABLE "IntegrationSettings" ADD COLUMN IF NOT EXISTS "whatsappProvider" TEXT NOT NULL DEFAULT 'EVOLUTION'`);
+  await prisma.$executeRawUnsafe(`ALTER TABLE "IntegrationSettings" ADD COLUMN IF NOT EXISTS "captureEvolution" BOOLEAN NOT NULL DEFAULT true`);
+  await prisma.$executeRawUnsafe(`ALTER TABLE "IntegrationSettings" ADD COLUMN IF NOT EXISTS "captureWuz" BOOLEAN NOT NULL DEFAULT false`);
+  await prisma.$executeRawUnsafe(`ALTER TABLE "IntegrationSettings" ADD COLUMN IF NOT EXISTS "wuzApiUrl" TEXT`);
+  await prisma.$executeRawUnsafe(`ALTER TABLE "IntegrationSettings" ADD COLUMN IF NOT EXISTS "wuzApiToken" TEXT`);
+  await prisma.$executeRawUnsafe(`ALTER TABLE "IntegrationSettings" ADD COLUMN IF NOT EXISTS "wuzInstanceName" TEXT`);
 }
 
 function isMissingIntegrationSettingsColumnError(error: unknown) {
