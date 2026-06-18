@@ -673,7 +673,7 @@ export function AdminWhatsappChat({
                           ) : (
                             <span className="inline-block text-[11px] text-neutral-500">{formatTime(message.createdAt)}</span>
                           )}
-                          {message.errorMessage ? <p className="mt-1 text-xs text-red-700">{formatDeliveryError(message.errorMessage)}</p> : null}
+                          <DeliveryErrorMessage error={message.errorMessage} />
                         </div>
                       </div>
                     ))}
@@ -1052,14 +1052,28 @@ function formatChatContent(content: string) {
     .trim();
 }
 
-function formatDeliveryError(error: string) {
+function formatDeliveryError(error: string | null) {
+  if (!error) {
+    return "";
+  }
+
   const normalized = error.trim().toLowerCase();
+
+  if (normalized === "no session") {
+    return "";
+  }
 
   if (normalized === "not found" || normalized.includes("wuz retornou status 404")) {
     return "Mensagem não enviada. A integração estava usando uma rota antiga.";
   }
 
   return error;
+}
+
+function DeliveryErrorMessage({ error }: { error: string | null }) {
+  const message = formatDeliveryError(error);
+
+  return message ? <p className="mt-1 text-xs text-red-700">{message}</p> : null;
 }
 
 function LinkifiedText({ text }: { text: string }) {
