@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { shouldCaptureWhatsappProvider } from "@/lib/integrations";
+import { recordWebhookAudit } from "@/lib/webhook-audit";
 import { saveInboundWhatsappMessage } from "@/lib/whatsapp-message-log";
 
 export async function POST(request: Request) {
@@ -9,14 +10,38 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }
 
-  if (!(await shouldCaptureWhatsappProvider("WUZ"))) {
-    return NextResponse.json({ ok: true, ignored: true, reason: "provider_capture_disabled" });
-  }
-
   const payload = await request.json().catch(() => null);
   const event = extractWuzMessage(payload);
 
+  if (!(await shouldCaptureWhatsappProvider("WUZ"))) {
+    await recordWebhookAudit({
+      provider: "wuz-webhook",
+      providerId: event?.id ?? null,
+      phone: event?.phone ?? null,
+      fromMe: event?.fromMe ?? null,
+      eventType: extractEventType(payload),
+      parsed: Boolean(event?.phone || event?.text || event?.attachmentUrl),
+      saved: false,
+      reason: "provider_capture_disabled",
+      payloadKeys: getPayloadKeys(payload),
+    }).catch(() => undefined);
+
+    return NextResponse.json({ ok: true, ignored: true, reason: "provider_capture_disabled" });
+  }
+
   if (!event?.phone || (!event.text && !event.attachmentUrl)) {
+    await recordWebhookAudit({
+      provider: "wuz-webhook",
+      providerId: event?.id ?? null,
+      phone: event?.phone ?? null,
+      fromMe: event?.fromMe ?? null,
+      eventType: extractEventType(payload),
+      parsed: Boolean(event?.phone || event?.text || event?.attachmentUrl),
+      saved: false,
+      reason: "ignored_empty_or_unparsed",
+      payloadKeys: getPayloadKeys(payload),
+    }).catch(() => undefined);
+
     return NextResponse.json({ ok: true, ignored: true });
   }
 
@@ -31,6 +56,18 @@ export async function POST(request: Request) {
     createdAt: event.createdAt,
     direction: event.fromMe ? "OUTBOUND" : "INBOUND",
   });
+
+  await recordWebhookAudit({
+    provider: "wuz-webhook",
+    providerId: event.id,
+    phone: event.phone,
+    fromMe: event.fromMe,
+    eventType: extractEventType(payload),
+    parsed: true,
+    saved: Boolean(result.saved),
+    reason: getString((result as Record<string, unknown>).reason) || null,
+    payloadKeys: getPayloadKeys(payload),
+  }).catch(() => undefined);
 
   return NextResponse.json({ ok: true, ...result });
 }
@@ -93,6 +130,27 @@ function isValidSecret(request: Request, secret: string) {
     request.headers.get("x-webhook-secret") === secret ||
     request.headers.get("x-wuz-secret") === secret ||
     request.headers.get("authorization") === `Bearer ${secret}`
+  );
+}
+
+function extractEventType(payload: unknown) {
+  const record = getRecord(payload);
+  const data = getRecord(record?.data);
+
+  return getString(record?.event) || getString(record?.type) || getString(record?.Event) || getString(data?.event) || getString(data?.type) || null;
+}
+
+function getPayloadKeys(payload: unknown) {
+  const record = getRecord(payload);
+  const data = getRecord(record?.data);
+  const message = getRecord(data?.message);
+
+  return Array.from(
+    new Set([
+      ...Object.keys(record ?? {}),
+      ...Object.keys(data ?? {}).map((key) => `data.${key}`),
+      ...Object.keys(message ?? {}).map((key) => `data.message.${key}`),
+    ]),
   );
 }
 
