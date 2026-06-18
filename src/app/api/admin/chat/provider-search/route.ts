@@ -78,21 +78,14 @@ async function findEvolutionMessages(suffix: string, days: number) {
     return { ok: false, error: "Evolution API não configurada.", messages: [] as ProviderMessage[] };
   }
 
-  const response = await fetch(`${settings.apiUrl}/chat/findMessages/${encodeURIComponent(settings.instanceName)}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: settings.apiKey,
-    },
-    body: JSON.stringify({
+  const body = JSON.stringify({
       where: {
         messageTimestamp: {
           gte: Math.floor((Date.now() - days * 24 * 60 * 60 * 1000) / 1000),
         },
       },
-    }),
-    cache: "no-store",
-  });
+    });
+  const response = await fetchEvolutionFindMessages(settings, body);
   const payload = await response.json().catch(() => null);
 
   if (!response.ok) {
@@ -111,6 +104,37 @@ async function findEvolutionMessages(suffix: string, days: number) {
       .map(parseEvolutionMessage)
       .filter((message): message is ProviderMessage => Boolean(message?.phone.endsWith(suffix))),
   };
+}
+
+async function fetchEvolutionFindMessages(settings: NonNullable<Awaited<ReturnType<typeof getEvolutionRuntimeSettings>>>, body: string) {
+  const baseUrl = settings.apiUrl.replace(/\/+$/, "");
+  const candidates = Array.from(new Set([baseUrl, `${baseUrl}/api`, baseUrl.replace(/\/api$/i, "")]));
+
+  for (const candidate of candidates) {
+    const response = await fetch(`${candidate}/chat/findMessages/${encodeURIComponent(settings.instanceName)}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: settings.apiKey,
+      },
+      body,
+      cache: "no-store",
+    });
+
+    if (response.status !== 404) {
+      return response;
+    }
+  }
+
+  return fetch(`${baseUrl}/chat/findMessages/${encodeURIComponent(settings.instanceName)}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: settings.apiKey,
+    },
+    body,
+    cache: "no-store",
+  });
 }
 
 async function findWuzMessages(suffix: string) {
@@ -255,7 +279,11 @@ function parseWuzMessage(value: unknown): ProviderMessage | null {
 }
 
 function extractWuzContactJids(payload: unknown) {
-  return flattenPotentialMessages(payload)
+  const record = getRecord(payload);
+  const data = getRecord(record?.data);
+  const keyedJids = data ? Object.keys(data).filter((key) => key.includes("@")) : [];
+
+  return [...keyedJids, ...flattenPotentialMessages(payload)
     .flatMap((record) => [
       getString(record.jid),
       getString(record.id),
@@ -263,7 +291,7 @@ function extractWuzContactJids(payload: unknown) {
       getString(record.number),
       getString(record.contact_jid),
       getString(record.chat_jid),
-    ])
+    ])]
     .map((value) => (value.includes("@") ? value : `${normalizeWhatsappNumber(value)}@s.whatsapp.net`))
     .filter((value) => /^\d+@s\.whatsapp\.net$/.test(value));
 }
