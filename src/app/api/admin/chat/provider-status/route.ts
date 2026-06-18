@@ -160,7 +160,53 @@ async function setWuzWebhook() {
     return { configured: false, ok: false, error: "WUZ não configurada." };
   }
 
-  const response: Response | Error = await fetch(`${getWuzRequestBaseUrl(settings.apiUrl)}/webhook`, {
+  const [webhookResponse, connectResponse] = await Promise.all([
+    setWuzWebhookRequest(settings),
+    connectWuzSession(settings),
+  ]);
+
+  if (webhookResponse instanceof Error) {
+    return {
+      configured: true,
+      ok: false,
+      error: webhookResponse.message,
+    };
+  }
+
+  if (connectResponse instanceof Error) {
+    return {
+      configured: true,
+      ok: false,
+      error: connectResponse.message,
+    };
+  }
+
+  const webhookPayload = await webhookResponse.json().catch(() => null);
+  const connectPayload = await connectResponse.json().catch(() => null);
+
+  return {
+    configured: true,
+    ok: webhookResponse.ok && connectResponse.ok,
+    status: webhookResponse.status,
+    webhook: extractWuzWebhookUrl(webhookPayload) || extractWuzWebhookUrl(connectPayload) || WUZ_WEBHOOK_URL,
+    events: mergeEvents(extractWuzWebhookEvents(webhookPayload), extractWuzWebhookEvents(connectPayload)),
+    connection: {
+      ok: connectResponse.ok,
+      status: connectResponse.status,
+      state: extractWuzState(connectPayload),
+      error: connectResponse.ok ? null : extractError(connectPayload) || `WUZ connect retornou status ${connectResponse.status}.`,
+    },
+    error:
+      webhookResponse.ok && connectResponse.ok
+        ? null
+        : extractError(webhookPayload) ||
+          extractError(connectPayload) ||
+          `WUZ webhook/connect retornou status ${webhookResponse.status}/${connectResponse.status}.`,
+  };
+}
+
+async function setWuzWebhookRequest(settings: NonNullable<Awaited<ReturnType<typeof getWuzRuntimeSettings>>>) {
+  return fetch(`${getWuzRequestBaseUrl(settings.apiUrl)}/webhook`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -175,25 +221,21 @@ async function setWuzWebhook() {
     }),
     cache: "no-store",
   }).catch((error: unknown) => (error instanceof Error ? error : new Error(String(error))));
+}
 
-  if (response instanceof Error) {
-    return {
-      configured: true,
-      ok: false,
-      error: response.message,
-    };
-  }
-
-  const payload = await response.json().catch(() => null);
-
-  return {
-    configured: true,
-    ok: response.ok,
-    status: response.status,
-    webhook: extractWuzWebhookUrl(payload) || WUZ_WEBHOOK_URL,
-    events: extractWuzWebhookEvents(payload),
-    error: response.ok ? null : extractError(payload) || `WUZ webhook retornou status ${response.status}.`,
-  };
+async function connectWuzSession(settings: NonNullable<Awaited<ReturnType<typeof getWuzRuntimeSettings>>>) {
+  return fetch(`${getWuzRequestBaseUrl(settings.apiUrl)}/session/connect`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      token: settings.apiToken,
+    },
+    body: JSON.stringify({
+      Subscribe: WUZ_WEBHOOK_EVENTS,
+      Immediate: true,
+    }),
+    cache: "no-store",
+  }).catch((error: unknown) => (error instanceof Error ? error : new Error(String(error))));
 }
 
 function extractEvolutionState(payload: unknown) {
@@ -262,6 +304,10 @@ function extractWuzWebhookEvents(payload: unknown) {
 
 function hasWuzMessageEvent(events: string[]) {
   return events.some((event) => event === "Message" || event === "All");
+}
+
+function mergeEvents(...eventLists: string[][]) {
+  return Array.from(new Set(eventLists.flat()));
 }
 
 function getWuzRequestBaseUrl(apiUrl: string) {
