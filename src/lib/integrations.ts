@@ -328,16 +328,7 @@ export async function sendWuzTextMessage({ number, text }: { number: string; tex
   const data = await response.json().catch(() => null);
 
   if (!response.ok || data?.success === false) {
-    const message = formatWuzError(data?.error ?? data?.message ?? data?.data ?? `WUZ retornou status ${response.status}.`);
-
-    if (isWuzNoSessionWarning(message)) {
-      return {
-        ...(data && typeof data === "object" ? data : {}),
-        warning: message,
-      };
-    }
-
-    throw new Error(message);
+    throw new Error(formatWuzError(data?.error ?? data?.message ?? data?.data ?? `WUZ retornou status ${response.status}.`));
   }
 
   return data;
@@ -522,10 +513,6 @@ function formatWuzError(message: unknown): string {
   }
 
   return String(message || "Erro desconhecido da WUZ.");
-}
-
-function isWuzNoSessionWarning(message: string) {
-  return message.trim().toLowerCase() === "no session";
 }
 
 function getEvolutionMediaType(mimeType: string) {

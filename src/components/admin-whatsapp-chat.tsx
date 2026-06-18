@@ -1059,10 +1059,6 @@ function formatDeliveryError(error: string | null) {
 
   const normalized = error.trim().toLowerCase();
 
-  if (normalized === "no session") {
-    return "";
-  }
-
   if (normalized === "not found" || normalized.includes("wuz retornou status 404")) {
     return "Mensagem não enviada. A integração estava usando uma rota antiga.";
   }
