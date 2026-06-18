@@ -147,7 +147,7 @@ async function getWuzWebhook(settings: NonNullable<Awaited<ReturnType<typeof get
     status: response.status,
     webhook: extractWuzWebhookUrl(payload),
     events: extractWuzWebhookEvents(payload),
-    hasMessageEvent: extractWuzWebhookEvents(payload).includes("Message"),
+    hasMessageEvent: hasWuzMessageEvent(extractWuzWebhookEvents(payload)),
     isExpectedUrl: extractWuzWebhookUrl(payload) === WUZ_WEBHOOK_URL,
     error: response.ok ? null : extractError(payload) || `WUZ webhook retornou status ${response.status}.`,
   };
@@ -168,7 +168,10 @@ async function setWuzWebhook() {
     },
     body: JSON.stringify({
       webhook: WUZ_WEBHOOK_URL,
+      WebhookURL: WUZ_WEBHOOK_URL,
       events: WUZ_WEBHOOK_EVENTS,
+      Events: WUZ_WEBHOOK_EVENTS,
+      Active: true,
     }),
     cache: "no-store",
   }).catch((error: unknown) => (error instanceof Error ? error : new Error(String(error))));
@@ -226,7 +229,21 @@ function extractWuzWebhookUrl(payload: unknown) {
   const record = getRecord(payload);
   const data = getRecord(record?.data);
 
-  return getString(data?.webhook) || getString(data?.WebhookURL) || getString(record?.webhook) || getString(record?.WebhookURL) || null;
+  return (
+    getString(data?.webhook) ||
+    getString(data?.WebhookURL) ||
+    getString(data?.Webhook) ||
+    getString(data?.url) ||
+    getString(data?.URL) ||
+    getString(data?.webhook_url) ||
+    getString(record?.webhook) ||
+    getString(record?.WebhookURL) ||
+    getString(record?.Webhook) ||
+    getString(record?.url) ||
+    getString(record?.URL) ||
+    getString(record?.webhook_url) ||
+    null
+  );
 }
 
 function extractWuzWebhookEvents(payload: unknown) {
@@ -241,6 +258,10 @@ function extractWuzWebhookEvents(payload: unknown) {
   }
 
   return [];
+}
+
+function hasWuzMessageEvent(events: string[]) {
+  return events.some((event) => event === "Message" || event === "All");
 }
 
 function getWuzRequestBaseUrl(apiUrl: string) {
