@@ -831,10 +831,10 @@ function buildThreadSections(leads: ChatLead[], showAssigneeGroups: boolean) {
 
   const newLeads = leads
     .filter((lead) => isNewLead(lead))
-    .sort((left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime());
+    .sort(sortByRecentActivity);
   const unassignedLeads = leads
     .filter((lead) => !lead.assignedToUserId && !isNewLead(lead))
-    .sort((left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime());
+    .sort(sortByRecentActivity);
   const assignedLeads = leads.filter((lead) => lead.assignedToUserId);
   const brokerGroups = new Map<string, ChatLead[]>();
 

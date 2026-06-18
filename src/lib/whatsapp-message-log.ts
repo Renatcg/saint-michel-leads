@@ -10,11 +10,13 @@ type InboundWhatsappMessage = {
   attachmentName: string | null;
   attachmentType: string | null;
   createdAt: Date;
+  direction?: "INBOUND" | "OUTBOUND";
 };
 
 export async function saveInboundWhatsappMessage(message: InboundWhatsappMessage) {
   const prisma = getPrisma();
   const phone = normalizeDigits(message.phone);
+  const direction = message.direction ?? "INBOUND";
   const lead = await prisma.lead.findFirst({
     where: {
       phone: {
@@ -22,11 +24,7 @@ export async function saveInboundWhatsappMessage(message: InboundWhatsappMessage
       },
     },
     select: { id: true },
-  });
-
-  if (!lead) {
-    return { saved: false, reason: "lead_not_found" };
-  }
+  }) ?? (await createWhatsappLead(phone, message.createdAt, direction));
 
   if (message.providerId) {
     const existingByProviderId = await prisma.messageLog.findFirst({
@@ -47,6 +45,7 @@ export async function saveInboundWhatsappMessage(message: InboundWhatsappMessage
     text: message.text,
     createdAt: message.createdAt,
     attachmentName: message.attachmentName,
+    direction,
   });
 
   if (duplicate) {
@@ -62,8 +61,8 @@ export async function saveInboundWhatsappMessage(message: InboundWhatsappMessage
       attachmentUrl: message.attachmentUrl,
       attachmentName: message.attachmentName,
       attachmentType: message.attachmentType,
-      direction: "INBOUND",
-      readAt: null,
+      direction,
+      readAt: direction === "INBOUND" ? null : message.createdAt,
       provider: message.provider,
       providerId: message.providerId,
       createdAt: message.createdAt,
@@ -72,7 +71,7 @@ export async function saveInboundWhatsappMessage(message: InboundWhatsappMessage
   await prisma.lead.update({
     where: { id: lead.id },
     data: {
-      lastInboundAt: message.createdAt,
+      ...(direction === "INBOUND" ? { lastInboundAt: message.createdAt } : { lastOutboundAt: message.createdAt }),
     },
   });
 
@@ -84,11 +83,13 @@ async function findEquivalentInboundMessage({
   text,
   createdAt,
   attachmentName,
+  direction,
 }: {
   leadId: string;
   text: string;
   createdAt: Date;
   attachmentName: string | null;
+  direction: "INBOUND" | "OUTBOUND";
 }) {
   const prisma = getPrisma();
   const start = new Date(createdAt.getTime() - 90_000);
@@ -98,7 +99,7 @@ async function findEquivalentInboundMessage({
     where: {
       leadId,
       channel: MessageChannel.WHATSAPP,
-      direction: "INBOUND",
+      direction,
       createdAt: {
         gte: start,
         lte: end,
@@ -112,8 +113,38 @@ async function findEquivalentInboundMessage({
   });
 }
 
+async function createWhatsappLead(phone: string, createdAt: Date, direction: "INBOUND" | "OUTBOUND") {
+  const prisma = getPrisma();
+  const normalizedPhone = normalizePhoneNumber(phone);
+
+  return prisma.lead.create({
+    data: {
+      name: `WhatsApp ${formatPhoneLabel(normalizedPhone)}`,
+      email: `whatsapp-${normalizedPhone}@saint-michel.local`,
+      phone: normalizedPhone,
+      acceptedDataUsage: true,
+      source: "whatsapp",
+      status: "NEW",
+      ...(direction === "INBOUND" ? { lastInboundAt: createdAt } : { lastOutboundAt: createdAt }),
+    },
+    select: { id: true },
+  });
+}
+
 function normalizeDigits(value: string) {
   return value.replace(/\D/g, "");
+}
+
+function normalizePhoneNumber(phone: string) {
+  if (phone.startsWith("55")) {
+    return phone;
+  }
+
+  return `55${phone}`;
+}
+
+function formatPhoneLabel(phone: string) {
+  return phone.replace(/^55/, "").replace(/(\d{2})(\d+)(\d{4})$/, "($1) $2-$3");
 }
 
 function normalizeText(value: string) {

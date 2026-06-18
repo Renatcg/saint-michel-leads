@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, ignored: true, reason: "provider_capture_disabled" });
   }
 
-  if (!event?.phone || event.fromMe || (!event.text && !event.attachmentUrl)) {
+  if (!event?.phone || (!event.text && !event.attachmentUrl)) {
     return NextResponse.json({ ok: true, ignored: true });
   }
 
@@ -29,6 +29,7 @@ export async function POST(request: Request) {
     attachmentName: event.attachmentName,
     attachmentType: event.attachmentType,
     createdAt: event.createdAt,
+    direction: event.fromMe ? "OUTBOUND" : "INBOUND",
   });
 
   return NextResponse.json({ ok: true, ...result });
