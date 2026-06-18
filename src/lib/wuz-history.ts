@@ -49,6 +49,8 @@ export async function fetchWuzHistoryForLead(lead: Pick<Lead, "id" | "phone">) {
   }
 
   const chatJid = `${normalizeWhatsappNumber(lead.phone)}@s.whatsapp.net`;
+  await requestWuzHistorySync(settings, chatJid);
+
   const url = new URL(`${getWuzRequestBaseUrl(settings.apiUrl)}/chat/history`);
   url.searchParams.set("chat_jid", chatJid);
   url.searchParams.set("limit", "1000");
@@ -66,6 +68,19 @@ export async function fetchWuzHistoryForLead(lead: Pick<Lead, "id" | "phone">) {
 
   const payload = await response.json().catch(() => null);
   return extractWuzMessages(payload).filter((message) => message.chatJid === chatJid || !message.chatJid);
+}
+
+async function requestWuzHistorySync(settings: NonNullable<Awaited<ReturnType<typeof getWuzRuntimeSettings>>>, chatJid: string) {
+  const url = new URL(`${getWuzRequestBaseUrl(settings.apiUrl)}/session/history`);
+  url.searchParams.set("chat_jid", chatJid);
+  url.searchParams.set("count", "1000");
+
+  await fetch(url, {
+    headers: {
+      token: settings.apiToken,
+    },
+    cache: "no-store",
+  }).catch(() => null);
 }
 
 export async function syncWuzHistoryForLeads(leads: Pick<Lead, "id" | "phone">[]) {
