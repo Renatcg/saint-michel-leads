@@ -93,6 +93,8 @@ export function AdminWhatsappChat({
   const [assignmentMenu, setAssignmentMenu] = useState<AssignmentMenu | null>(null);
   const [assigningLeadId, setAssigningLeadId] = useState<string | null>(null);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [leadQuery, setLeadQuery] = useState("");
+  const [searchingLeads, setSearchingLeads] = useState(false);
   const messagesAreaRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -103,7 +105,10 @@ export function AdminWhatsappChat({
   const unreadTotalRef = useRef(sumUnreadMessages(leads));
   const audioContextRef = useRef<AudioContext | null>(null);
 
-  const selectedLead = useMemo(() => threads.find((lead) => lead.id === activeLeadId) ?? threads[0] ?? null, [threads, activeLeadId]);
+  const selectedLead = useMemo(
+    () => threads.find((lead) => lead.id === activeLeadId) ?? leads.find((lead) => lead.id === activeLeadId) ?? threads[0] ?? null,
+    [leads, threads, activeLeadId],
+  );
   const visibleThreads = useMemo(() => (favoritesOnly ? threads.filter((lead) => lead.isFavorite) : threads), [favoritesOnly, threads]);
   const threadSections = useMemo(() => buildThreadSections(visibleThreads, showAssigneeGroups), [visibleThreads, showAssigneeGroups]);
   const assignmentLead = useMemo(
@@ -182,7 +187,7 @@ export function AdminWhatsappChat({
 
       const [chatResponse, threadsResponse] = await Promise.all([
         fetch(`/api/admin/chat?leadId=${selectedLead.id}`, { cache: "no-store" }),
-        fetch("/api/admin/chat/threads", { cache: "no-store" }),
+        fetch(buildThreadsUrl(leadQuery), { cache: "no-store" }),
       ]);
       const chatData = await chatResponse.json().catch(() => null);
       const threadsData = await threadsResponse.json().catch(() => null);
@@ -212,7 +217,34 @@ export function AdminWhatsappChat({
 
     const interval = window.setInterval(refresh, 8000);
     return () => window.clearInterval(interval);
-  }, [selectedLead]);
+  }, [selectedLead, leadQuery]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(async () => {
+      setSearchingLeads(true);
+
+      const response = await fetch(buildThreadsUrl(leadQuery), {
+        cache: "no-store",
+        signal: controller.signal,
+      }).catch(() => null);
+      const data = await response?.json().catch(() => null);
+
+      if (!controller.signal.aborted && response?.ok && Array.isArray(data?.leads)) {
+        unreadTotalRef.current = sumUnreadMessages(data.leads);
+        setThreads(data.leads);
+      }
+
+      if (!controller.signal.aborted) {
+        setSearchingLeads(false);
+      }
+    }, 250);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timeout);
+    };
+  }, [leadQuery]);
 
   async function selectLead(leadId: string) {
     if (leadId === activeLeadId) {
@@ -238,7 +270,7 @@ export function AdminWhatsappChat({
     }
     setLoadingMessages(false);
 
-    const threadsResponse = await fetch("/api/admin/chat/threads", { cache: "no-store" });
+    const threadsResponse = await fetch(buildThreadsUrl(leadQuery), { cache: "no-store" });
     const threadsData = await threadsResponse.json().catch(() => null);
 
     if (threadsResponse.ok && Array.isArray(threadsData?.leads)) {
@@ -366,7 +398,7 @@ export function AdminWhatsappChat({
     }
 
     const refreshed = await fetch(`/api/admin/chat?leadId=${selectedLead.id}`).then((result) => result.json());
-    const refreshedThreads = await fetch("/api/admin/chat/threads").then((result) => result.json());
+    const refreshedThreads = await fetch(buildThreadsUrl(leadQuery)).then((result) => result.json());
     shouldKeepBottomRef.current = true;
     markKnownInboundMessages(refreshed.messages ?? [], knownInboundIdsRef.current);
     unreadTotalRef.current = sumUnreadMessages(refreshedThreads.leads ?? threads);
@@ -400,7 +432,7 @@ export function AdminWhatsappChat({
 
     const [chatResponse, threadsResponse] = await Promise.all([
       fetch(`/api/admin/chat?leadId=${selectedLead.id}`, { cache: "no-store" }),
-      fetch("/api/admin/chat/threads", { cache: "no-store" }),
+      fetch(buildThreadsUrl(leadQuery), { cache: "no-store" }),
     ]);
     const chatData = await chatResponse.json().catch(() => null);
     const threadsData = await threadsResponse.json().catch(() => null);
@@ -460,11 +492,40 @@ export function AdminWhatsappChat({
               </button>
             ) : null}
           </div>
+          <div className="relative mt-3">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400">
+              <SearchIcon />
+            </span>
+            <input
+              className="h-10 w-full rounded-full border border-black/10 bg-neutral-50 py-2 pl-9 pr-10 text-sm outline-none transition focus:border-[#98743e] focus:bg-white"
+              type="search"
+              value={leadQuery}
+              onChange={(event) => setLeadQuery(event.target.value)}
+              placeholder="Buscar por nome ou telefone"
+              aria-label="Buscar lead por nome ou telefone"
+            />
+            {leadQuery ? (
+              <button
+                className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-200"
+                type="button"
+                onClick={() => setLeadQuery("")}
+                title="Limpar busca"
+                aria-label="Limpar busca"
+              >
+                ×
+              </button>
+            ) : null}
+          </div>
+          {searchingLeads ? <p className="mt-2 px-1 text-xs text-neutral-500">Buscando...</p> : null}
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
           {threadSections.length === 0 ? (
             <p className="px-4 py-6 text-sm text-neutral-500">
-              {favoritesOnly ? "Nenhuma conversa favoritada." : "Nenhuma conversa encontrada."}
+              {leadQuery.trim()
+                ? "Nenhum lead encontrado para essa busca."
+                : favoritesOnly
+                  ? "Nenhuma conversa favoritada."
+                  : "Nenhuma conversa encontrada."}
             </p>
           ) : null}
           {threadSections.map((section) => {
@@ -745,6 +806,16 @@ function sumUnreadMessages(leads: ChatLead[]) {
   return leads.reduce((total, lead) => total + lead.unreadCount, 0);
 }
 
+function buildThreadsUrl(query: string) {
+  const trimmed = query.trim();
+
+  if (!trimmed) {
+    return "/api/admin/chat/threads";
+  }
+
+  return `/api/admin/chat/threads?q=${encodeURIComponent(trimmed)}`;
+}
+
 function buildThreadSections(leads: ChatLead[], showAssigneeGroups: boolean) {
   if (!showAssigneeGroups) {
     return [
@@ -951,6 +1022,15 @@ function StarIcon({ filled }: { filled: boolean }) {
   return (
     <svg aria-hidden="true" className="h-4 w-4" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeLinejoin="round" strokeWidth="1.8" viewBox="0 0 24 24">
       <path d="m12 3.5 2.6 5.3 5.9.9-4.2 4.1 1 5.8-5.3-2.8-5.3 2.8 1-5.8-4.2-4.1 5.9-.9L12 3.5Z" />
+    </svg>
+  );
+}
+
+function SearchIcon() {
+  return (
+    <svg aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.5-3.5" />
     </svg>
   );
 }
