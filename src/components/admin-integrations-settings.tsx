@@ -56,7 +56,7 @@ export function AdminIntegrationsSettings({
     const response = await fetch("/api/admin/integrations/test-whatsapp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ number: testNumber, text: testText }),
+      body: JSON.stringify({ number: testNumber, text: testText, integrations }),
     });
 
     setTestingWhatsApp(false);
@@ -151,7 +151,7 @@ export function AdminIntegrationsSettings({
         <div className="mt-5 rounded-lg border border-black/10 bg-neutral-50 p-4">
           <h3 className="text-lg font-semibold">Teste de WhatsApp</h3>
           <p className="mt-2 text-sm leading-6 text-neutral-600">
-            Envie uma mensagem de teste usando a Evolution API configurada na Vercel ou, como fallback, os dados cadastrados aqui.
+            Envie uma mensagem de teste usando os dados preenchidos acima.
           </p>
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             <TextInput label="Número de teste" value={testNumber} canEdit={canEdit} placeholder="21967566636" onChange={setTestNumber} />

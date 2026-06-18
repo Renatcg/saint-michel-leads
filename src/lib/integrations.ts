@@ -11,6 +11,8 @@ export type AdminIntegrationSettings = {
   evolutionInstanceName: string;
 };
 
+type EvolutionRuntimeOverrides = Partial<Pick<AdminIntegrationSettings, "evolutionApiUrl" | "evolutionApiKey" | "evolutionInstanceName">>;
+
 export const defaultIntegrationSettings: AdminIntegrationSettings = {
   resendApiKey: "",
   resendFromEmail: "",
@@ -24,12 +26,12 @@ export async function getIntegrationSettings(): Promise<AdminIntegrationSettings
   const settings = await getStoredIntegrationSettings();
 
   return {
-    resendApiKey: process.env.RESEND_API_KEY || settings.resendApiKey ? SECRET_PLACEHOLDER : "",
-    resendFromEmail: process.env.RESEND_FROM_EMAIL || settings.resendFromEmail,
-    resendFromName: process.env.RESEND_FROM_NAME || settings.resendFromName || defaultIntegrationSettings.resendFromName,
-    evolutionApiUrl: process.env.EVOLUTION_API_URL || process.env.EVO_API_URL || settings.evolutionApiUrl,
-    evolutionApiKey: process.env.EVOLUTION_API_KEY || process.env.EVO_API_KEY || settings.evolutionApiKey ? SECRET_PLACEHOLDER : "",
-    evolutionInstanceName: process.env.EVOLUTION_INSTANCE_NAME || process.env.EVO_INSTANCE_NAME || settings.evolutionInstanceName,
+    resendApiKey: settings.resendApiKey || process.env.RESEND_API_KEY ? SECRET_PLACEHOLDER : "",
+    resendFromEmail: settings.resendFromEmail || process.env.RESEND_FROM_EMAIL || "",
+    resendFromName: settings.resendFromName || process.env.RESEND_FROM_NAME || defaultIntegrationSettings.resendFromName,
+    evolutionApiUrl: settings.evolutionApiUrl || process.env.EVOLUTION_API_URL || process.env.EVO_API_URL || "",
+    evolutionApiKey: settings.evolutionApiKey || process.env.EVOLUTION_API_KEY || process.env.EVO_API_KEY ? SECRET_PLACEHOLDER : "",
+    evolutionInstanceName: settings.evolutionInstanceName || process.env.EVOLUTION_INSTANCE_NAME || process.env.EVO_INSTANCE_NAME || "",
   };
 }
 
@@ -87,11 +89,13 @@ export function normalizeIntegrationSettings(settings: Partial<AdminIntegrationS
   };
 }
 
-export async function getEvolutionRuntimeSettings() {
+export async function getEvolutionRuntimeSettings(overrides: EvolutionRuntimeOverrides = {}) {
   const settings = await getStoredIntegrationSettings();
-  const apiUrl = trimTrailingSlash(process.env.EVOLUTION_API_URL || process.env.EVO_API_URL || settings.evolutionApiUrl);
-  const apiKey = process.env.EVOLUTION_API_KEY || process.env.EVO_API_KEY || settings.evolutionApiKey;
-  const instanceName = process.env.EVOLUTION_INSTANCE_NAME || process.env.EVO_INSTANCE_NAME || settings.evolutionInstanceName;
+  const apiUrl = trimTrailingSlash(overrides.evolutionApiUrl?.trim() || settings.evolutionApiUrl || process.env.EVOLUTION_API_URL || process.env.EVO_API_URL || "");
+  const apiKey = shouldPreserveSecret(overrides.evolutionApiKey)
+    ? settings.evolutionApiKey || process.env.EVOLUTION_API_KEY || process.env.EVO_API_KEY || ""
+    : overrides.evolutionApiKey?.trim() || settings.evolutionApiKey || process.env.EVOLUTION_API_KEY || process.env.EVO_API_KEY || "";
+  const instanceName = overrides.evolutionInstanceName?.trim() || settings.evolutionInstanceName || process.env.EVOLUTION_INSTANCE_NAME || process.env.EVO_INSTANCE_NAME || "";
 
   if (!apiUrl || !apiKey || !instanceName) {
     return null;
@@ -104,8 +108,16 @@ export async function getEvolutionRuntimeSettings() {
   };
 }
 
-export async function sendEvolutionTextMessage({ number, text }: { number: string; text: string }) {
-  const settings = await getEvolutionRuntimeSettings();
+export async function sendEvolutionTextMessage({
+  number,
+  text,
+  settings: overrides,
+}: {
+  number: string;
+  text: string;
+  settings?: EvolutionRuntimeOverrides;
+}) {
+  const settings = await getEvolutionRuntimeSettings(overrides);
 
   if (!settings) {
     throw new Error("Evolution API não configurada. Verifique EVOLUTION_API_URL, EVOLUTION_API_KEY e EVOLUTION_INSTANCE_NAME.");

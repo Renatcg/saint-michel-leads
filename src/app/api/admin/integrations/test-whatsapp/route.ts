@@ -6,6 +6,13 @@ import { normalizeWhatsappNumber, sendEvolutionTextMessage } from "@/lib/integra
 const testWhatsAppSchema = z.object({
   number: z.string().trim().min(10, "Informe um WhatsApp válido."),
   text: z.string().trim().min(2, "Informe uma mensagem."),
+  integrations: z
+    .object({
+      evolutionApiUrl: z.string().optional(),
+      evolutionApiKey: z.string().optional(),
+      evolutionInstanceName: z.string().optional(),
+    })
+    .optional(),
 });
 
 export async function POST(request: Request) {
@@ -26,6 +33,7 @@ export async function POST(request: Request) {
     const data = await sendEvolutionTextMessage({
       number: parsed.data.number,
       text: parsed.data.text,
+      settings: parsed.data.integrations,
     });
 
     return NextResponse.json({
