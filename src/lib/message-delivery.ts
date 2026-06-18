@@ -151,13 +151,13 @@ async function sendEmailSchedule(schedule: TemplateWithLead) {
 
 async function sendWhatsappSchedule(schedule: TemplateWithLead) {
   const prisma = getPrisma();
+  const salesContactUrl = await getSalesContactUrl();
+  const renderedBody = renderMessageTemplate(schedule.template.body, schedule.lead, { salesContactUrl });
+  const text = stripRichContent(replaceSalesContactLinks(renderedBody, salesContactUrl));
+  const whatsappProvider = await getActiveWhatsappProvider();
+  const providerPrefix = whatsappProvider === "WUZ" ? "wuz" : "evolution";
 
   try {
-    const salesContactUrl = await getSalesContactUrl();
-    const renderedBody = renderMessageTemplate(schedule.template.body, schedule.lead, { salesContactUrl });
-    const text = stripRichContent(replaceSalesContactLinks(renderedBody, salesContactUrl));
-    const whatsappProvider = await getActiveWhatsappProvider();
-    const providerPrefix = whatsappProvider === "WUZ" ? "wuz" : "evolution";
     const result = await sendWhatsappTextMessage({
       number: schedule.lead.phone,
       text,
@@ -196,10 +196,10 @@ async function sendWhatsappSchedule(schedule: TemplateWithLead) {
           templateId: schedule.template.id,
           channel: MessageChannel.WHATSAPP,
           status: DeliveryStatus.FAILED,
-          content: schedule.template.body,
+          content: text,
           direction: "OUTBOUND",
           readAt: new Date(),
-          provider: "whatsapp",
+          provider: providerPrefix,
           errorMessage,
         } as never,
       }),

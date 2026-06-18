@@ -606,13 +606,13 @@ export function AdminWhatsappChat({
                           ) : null}
                           {message.content ? (
                             <p className="whitespace-pre-wrap break-words">
-                              <LinkifiedText text={message.content} />{" "}
+                              <LinkifiedText text={formatChatContent(message.content)} />{" "}
                               <span className="inline-block pl-1 text-[11px] text-neutral-500">{formatTime(message.createdAt)}</span>
                             </p>
                           ) : (
                             <span className="inline-block text-[11px] text-neutral-500">{formatTime(message.createdAt)}</span>
                           )}
-                          {message.errorMessage ? <p className="mt-1 text-xs text-red-700">{message.errorMessage}</p> : null}
+                          {message.errorMessage ? <p className="mt-1 text-xs text-red-700">{formatDeliveryError(message.errorMessage)}</p> : null}
                         </div>
                       </div>
                     ))}
@@ -953,6 +953,33 @@ function StarIcon({ filled }: { filled: boolean }) {
       <path d="m12 3.5 2.6 5.3 5.9.9-4.2 4.1 1 5.8-5.3-2.8-5.3 2.8 1-5.8-4.2-4.1 5.9-.9L12 3.5Z" />
     </svg>
   );
+}
+
+function formatChatContent(content: string) {
+  return content
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>|<\/div>|<\/li>/gi, "\n")
+    .replace(/<li[^>]*>/gi, "- ")
+    .replace(/<a[^>]*href=["']([^"']+)["'][^>]*>(.*?)<\/a>/gi, "$2: $1")
+    .replace(/<img[^>]*alt=["']([^"']*)["'][^>]*>/gi, "Imagem: $1")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function formatDeliveryError(error: string) {
+  const normalized = error.trim().toLowerCase();
+
+  if (normalized === "not found" || normalized.includes("wuz retornou status 404")) {
+    return "Mensagem não enviada. A integração estava usando uma rota antiga.";
+  }
+
+  return error;
 }
 
 function LinkifiedText({ text }: { text: string }) {
