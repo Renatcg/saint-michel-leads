@@ -13,16 +13,25 @@ export function AdminIntegrationsSettings({
   canEdit: boolean;
 }) {
   const [integrations, setIntegrations] = useState(initialIntegrations);
+  const [savedIntegrations, setSavedIntegrations] = useState(initialIntegrations);
   const [salesPhone, setSalesPhone] = useState(initialSalesPhone);
+  const [savedSalesPhone, setSavedSalesPhone] = useState(initialSalesPhone);
   const [message, setMessage] = useState("");
+  const [messageTone, setMessageTone] = useState<"success" | "error" | "info">("info");
   const [testNumber, setTestNumber] = useState("21967566636");
   const [testText, setTestText] = useState("Teste Saint Michel: sua integração com WhatsApp está funcionando.");
   const [testMessage, setTestMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [testingWhatsApp, setTestingWhatsApp] = useState(false);
+  const hasChanges = JSON.stringify(integrations) !== JSON.stringify(savedIntegrations) || salesPhone !== savedSalesPhone;
+  const hasWhatsappChanges =
+    integrations.whatsappProvider !== savedIntegrations.whatsappProvider ||
+    integrations.captureEvolution !== savedIntegrations.captureEvolution ||
+    integrations.captureWuz !== savedIntegrations.captureWuz;
 
   function update(next: Partial<AdminIntegrationSettings>) {
     setIntegrations((current) => ({ ...current, ...next }));
+    setMessage("");
   }
 
   async function save() {
@@ -33,19 +42,23 @@ export function AdminIntegrationsSettings({
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ integrations, salesPhone }),
-    });
+    }).catch(() => null);
 
     setLoading(false);
 
-    if (!response.ok) {
-      const data = await response.json().catch(() => null);
+    if (!response?.ok) {
+      const data = response ? await response.json().catch(() => null) : null;
+      setMessageTone("error");
       setMessage(data?.error ?? "Não foi possível salvar as integrações.");
       return;
     }
 
     const data = await response.json();
     setIntegrations(data.integrations);
+    setSavedIntegrations(data.integrations);
     setSalesPhone(data.salesPhone);
+    setSavedSalesPhone(data.salesPhone);
+    setMessageTone("success");
     setMessage("Integrações atualizadas.");
   }
 
@@ -72,6 +85,25 @@ export function AdminIntegrationsSettings({
 
   return (
     <div className="mt-6 space-y-5">
+      <section className="sticky top-0 z-10 rounded-lg border border-black/10 bg-white/95 p-4 shadow-sm backdrop-blur">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-neutral-900">{hasChanges ? "Alterações pendentes" : "Configurações salvas"}</p>
+            {message ? <p className={`mt-1 text-sm ${messageTone === "error" ? "text-red-700" : "text-neutral-600"}`}>{message}</p> : null}
+          </div>
+          {canEdit ? (
+            <button
+              className="rounded-lg bg-[#98743e] px-5 py-3 font-semibold text-white disabled:opacity-60"
+              type="button"
+              disabled={loading || !hasChanges}
+              onClick={save}
+            >
+              {loading ? "Salvando..." : hasChanges ? "Salvar alterações" : "Salvo"}
+            </button>
+          ) : null}
+        </div>
+      </section>
+
       <section className="rounded-lg border border-black/10 bg-white p-5">
         <h2 className="text-xl font-semibold">Contato dos corretores</h2>
         <p className="mt-2 text-sm leading-6 text-neutral-600">
@@ -119,10 +151,19 @@ export function AdminIntegrationsSettings({
       </section>
 
       <section className="rounded-lg border border-black/10 bg-white p-5">
-        <h2 className="text-xl font-semibold">WhatsApp</h2>
-        <p className="mt-2 text-sm leading-6 text-neutral-600">
-          Escolha a API usada para envio e quais provedores podem alimentar o histórico do chat.
-        </p>
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div>
+            <h2 className="text-xl font-semibold">WhatsApp</h2>
+            <p className="mt-2 text-sm leading-6 text-neutral-600">
+              Escolha a API usada para envio e quais provedores podem alimentar o histórico do chat.
+            </p>
+          </div>
+          {hasWhatsappChanges ? (
+            <span className="rounded-md border border-[#98743e]/30 bg-[#98743e]/10 px-3 py-2 text-sm font-semibold text-[#7b5c2d]">
+              Salve para aplicar
+            </span>
+          ) : null}
+        </div>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <label className="block">
             <span className="mb-2 block text-sm font-medium text-neutral-700">Provedor ativo para envio</span>
@@ -259,11 +300,10 @@ export function AdminIntegrationsSettings({
       </section>
 
       {canEdit ? (
-        <button className="rounded-lg bg-[#98743e] px-5 py-3 font-semibold text-white disabled:opacity-60" type="button" disabled={loading} onClick={save}>
-          Salvar integrações
+        <button className="rounded-lg bg-[#98743e] px-5 py-3 font-semibold text-white disabled:opacity-60" type="button" disabled={loading || !hasChanges} onClick={save}>
+          {loading ? "Salvando..." : hasChanges ? "Salvar integrações" : "Integrações salvas"}
         </button>
       ) : null}
-      {message ? <p className="text-sm text-neutral-600">{message}</p> : null}
     </div>
   );
 }
