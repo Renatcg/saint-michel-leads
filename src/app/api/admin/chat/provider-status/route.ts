@@ -183,24 +183,28 @@ async function setWuzWebhook() {
 
   const webhookPayload = await webhookResponse.json().catch(() => null);
   const connectPayload = await connectResponse.json().catch(() => null);
+  const connectError = connectResponse.ok ? null : extractError(connectPayload) || `WUZ connect retornou status ${connectResponse.status}.`;
+  const isAlreadyConnected = isWuzAlreadyConnected(connectError);
+  const connectionOk = connectResponse.ok || isAlreadyConnected;
 
   return {
     configured: true,
-    ok: webhookResponse.ok && connectResponse.ok,
+    ok: webhookResponse.ok && connectionOk,
     status: webhookResponse.status,
     webhook: extractWuzWebhookUrl(webhookPayload) || extractWuzWebhookUrl(connectPayload) || WUZ_WEBHOOK_URL,
     events: mergeEvents(extractWuzWebhookEvents(webhookPayload), extractWuzWebhookEvents(connectPayload)),
     connection: {
-      ok: connectResponse.ok,
+      ok: connectionOk,
       status: connectResponse.status,
       state: extractWuzState(connectPayload),
-      error: connectResponse.ok ? null : extractError(connectPayload) || `WUZ connect retornou status ${connectResponse.status}.`,
+      warning: isAlreadyConnected ? "Sessão WUZ já estava conectada; o app não forçou reconexão." : null,
+      error: connectionOk ? null : connectError,
     },
     error:
-      webhookResponse.ok && connectResponse.ok
+      webhookResponse.ok && connectionOk
         ? null
         : extractError(webhookPayload) ||
-          extractError(connectPayload) ||
+          connectError ||
           `WUZ webhook/connect retornou status ${webhookResponse.status}/${connectResponse.status}.`,
   };
 }
@@ -214,6 +218,8 @@ async function setWuzWebhookRequest(settings: NonNullable<Awaited<ReturnType<typ
     },
     body: JSON.stringify({
       webhook: WUZ_WEBHOOK_URL,
+      webhookurl: WUZ_WEBHOOK_URL,
+      webhookURL: WUZ_WEBHOOK_URL,
       WebhookURL: WUZ_WEBHOOK_URL,
       events: WUZ_WEBHOOK_EVENTS,
       Events: WUZ_WEBHOOK_EVENTS,
@@ -267,18 +273,26 @@ function extractError(payload: unknown) {
   return getString(record?.error) || getString(record?.message) || getString(record?.Details) || getString(data?.error) || getString(data?.message) || null;
 }
 
+function isWuzAlreadyConnected(error: string | null) {
+  return error?.toLowerCase().includes("already connected") ?? false;
+}
+
 function extractWuzWebhookUrl(payload: unknown) {
   const record = getRecord(payload);
   const data = getRecord(record?.data);
 
   return (
     getString(data?.webhook) ||
+    getString(data?.webhookurl) ||
+    getString(data?.webhookURL) ||
     getString(data?.WebhookURL) ||
     getString(data?.Webhook) ||
     getString(data?.url) ||
     getString(data?.URL) ||
     getString(data?.webhook_url) ||
     getString(record?.webhook) ||
+    getString(record?.webhookurl) ||
+    getString(record?.webhookURL) ||
     getString(record?.WebhookURL) ||
     getString(record?.Webhook) ||
     getString(record?.url) ||
