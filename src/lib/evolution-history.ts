@@ -50,7 +50,13 @@ export async function fetchEvolutionHistoryForLead(lead: Pick<Lead, "id" | "phon
     fetchEvolutionMessagesPayload(settings, { remoteJid }),
     fetchEvolutionMessagesPayload(settings, { remoteJidAlt: remoteJid }),
   ]);
-  const messages = [...extractEvolutionMessages(remoteJidPayload), ...extractEvolutionMessages(remoteJidAltPayload)];
+  const lidAliases = extractRemoteJidAliases(remoteJidAltPayload, remoteJid);
+  const aliasPayloads = await Promise.all(lidAliases.map((alias) => fetchEvolutionMessagesPayload(settings, { remoteJid: alias })));
+  const messages = [
+    ...extractEvolutionMessages(remoteJidPayload),
+    ...extractEvolutionMessages(remoteJidAltPayload),
+    ...aliasPayloads.flatMap((payload) => extractEvolutionMessages(payload, new Map(lidAliases.map((alias) => [alias, remoteJid])))),
+  ];
   const seen = new Set<string>();
 
   return messages.filter((message) => {
@@ -159,10 +165,22 @@ function buildMessageLogData(leadId: string, message: EvolutionHistoryMessage) {
   } as never;
 }
 
-function extractEvolutionMessages(payload: unknown): EvolutionHistoryMessage[] {
+function extractEvolutionMessages(payload: unknown, jidAliases = new Map<string, string>()): EvolutionHistoryMessage[] {
   const records = flattenPotentialMessages(payload);
 
-  return records.map(parseEvolutionMessage).filter((message): message is EvolutionHistoryMessage => Boolean(message));
+  return records.map((record) => parseEvolutionMessage(record, jidAliases)).filter((message): message is EvolutionHistoryMessage => Boolean(message));
+}
+
+function extractRemoteJidAliases(payload: unknown, remoteJidAlt: string) {
+  return Array.from(
+    new Set(
+      flattenPotentialMessages(payload)
+        .map((record) => getRecord(record.key))
+        .filter((key) => getString(key?.remoteJidAlt) === remoteJidAlt)
+        .map((key) => getString(key?.remoteJid))
+        .filter((remoteJid) => remoteJid.endsWith("@lid")),
+    ),
+  );
 }
 
 function flattenPotentialMessages(value: unknown): Record<string, unknown>[] {
@@ -189,10 +207,11 @@ function flattenPotentialMessages(value: unknown): Record<string, unknown>[] {
   return record.key || record.message || record.messageTimestamp ? [record] : [];
 }
 
-function parseEvolutionMessage(record: Record<string, unknown>) {
+function parseEvolutionMessage(record: Record<string, unknown>, jidAliases = new Map<string, string>()) {
   const key = getRecord(record.key);
   const message = getRecord(record.message) ?? record;
-  const remoteJid = getString(key?.remoteJidAlt) || getString(key?.remoteJid) || getString(record.remoteJid);
+  const rawRemoteJid = getString(key?.remoteJid) || getString(record.remoteJid);
+  const remoteJid = getString(key?.remoteJidAlt) || jidAliases.get(rawRemoteJid) || rawRemoteJid;
   const timestamp = Number(record.messageTimestamp || record.messageTimestampS || record.createdAt || record.timestamp);
   const createdAt = Number.isFinite(timestamp)
     ? new Date(timestamp > 10_000_000_000 ? timestamp : timestamp * 1000)
