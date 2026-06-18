@@ -32,7 +32,6 @@ export async function GET() {
           assignedToUserId: user.id,
         },
     orderBy: { updatedAt: "desc" },
-    take: 100,
     include: {
       assignedTo: {
         select: {
@@ -81,9 +80,8 @@ export async function GET() {
         `
       : [];
   const outboundCountsByLead = new Map(outboundCounts.map((row) => [row.leadId, Number(row.outboundCount)]));
-
-  return NextResponse.json({
-    leads: leads.map((lead) => {
+  const chatLeads = leads
+    .map((lead) => {
       const lastLog = lastMessagesByLead.get(lead.id);
 
       return {
@@ -103,6 +101,21 @@ export async function GET() {
         unreadCount: Number(lastLog?.unreadCount ?? 0),
         isFavorite: lead.favorites.length > 0,
       };
-    }),
+    })
+    .sort(sortByRecentActivity)
+    .slice(0, 100);
+
+  return NextResponse.json({
+    leads: chatLeads,
   });
+}
+
+function sortByRecentActivity(
+  left: { lastMessageAt: string | null; createdAt: string },
+  right: { lastMessageAt: string | null; createdAt: string },
+) {
+  const leftTime = new Date(left.lastMessageAt ?? left.createdAt).getTime();
+  const rightTime = new Date(right.lastMessageAt ?? right.createdAt).getTime();
+
+  return rightTime - leftTime;
 }

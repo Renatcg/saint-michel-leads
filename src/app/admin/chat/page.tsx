@@ -67,7 +67,6 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
             assignedToUserId: currentUser.id,
           },
       orderBy: { updatedAt: "desc" },
-      take: 100,
       include: {
         assignedTo: {
           select: {
@@ -134,6 +133,31 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
         `
       : [];
   const outboundCountsByLead = new Map(outboundCounts.map((row) => [row.leadId, Number(row.outboundCount)]));
+  const chatLeads = leads
+    .map((lead) => {
+      const lastLog = lastMessagesByLead.get(lead.id);
+
+      return {
+        id: lead.id,
+        name: lead.name,
+        email: lead.email,
+        phone: lead.phone,
+        source: lead.source,
+        status: lead.status,
+        assignedToUserId: lead.assignedToUserId,
+        assignedToName: lead.assignedTo?.name ?? null,
+        lastOutboundAt: lead.lastOutboundAt?.toISOString() ?? null,
+        outboundCount: outboundCountsByLead.get(lead.id) ?? 0,
+        createdAt: lead.createdAt.toISOString(),
+        lastMessageAt: lastLog?.createdAt.toISOString() ?? null,
+        lastMessage: lastLog?.content || (lastLog?.attachmentName ? `Anexo: ${lastLog.attachmentName}` : ""),
+        unreadCount: Number(lastLog?.unreadCount ?? 0),
+        isFavorite: lead.favorites.length > 0,
+      };
+    })
+    .sort(sortByRecentActivity)
+    .slice(0, 100);
+  const selectedLeadId = chatLeads.some((lead) => lead.id === requestedLeadId) ? requestedLeadId : chatLeads[0]?.id ?? null;
 
   const messages = selectedLeadId
     ? await prisma.$queryRaw<ChatMessageRow[]>`
@@ -172,29 +196,19 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
           createdAt: message.createdAt.toISOString(),
           readAt: message.readAt?.toISOString() ?? null,
         }))}
-        leads={leads.map((lead) => {
-          const lastLog = lastMessagesByLead.get(lead.id);
-
-          return {
-            id: lead.id,
-            name: lead.name,
-            email: lead.email,
-            phone: lead.phone,
-            source: lead.source,
-            status: lead.status,
-            assignedToUserId: lead.assignedToUserId,
-            assignedToName: lead.assignedTo?.name ?? null,
-            lastOutboundAt: lead.lastOutboundAt?.toISOString() ?? null,
-            outboundCount: outboundCountsByLead.get(lead.id) ?? 0,
-            createdAt: lead.createdAt.toISOString(),
-            lastMessageAt: lastLog?.createdAt.toISOString() ?? null,
-            lastMessage: lastLog?.content || (lastLog?.attachmentName ? `Anexo: ${lastLog.attachmentName}` : ""),
-            unreadCount: Number(lastLog?.unreadCount ?? 0),
-            isFavorite: lead.favorites.length > 0,
-          };
-        })}
+        leads={chatLeads}
         showAssigneeGroups={canViewAll}
       />
     </AdminShell>
   );
+}
+
+function sortByRecentActivity(
+  left: { lastMessageAt: string | null; createdAt: string },
+  right: { lastMessageAt: string | null; createdAt: string },
+) {
+  const leftTime = new Date(left.lastMessageAt ?? left.createdAt).getTime();
+  const rightTime = new Date(right.lastMessageAt ?? right.createdAt).getTime();
+
+  return rightTime - leftTime;
 }

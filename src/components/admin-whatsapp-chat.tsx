@@ -530,11 +530,10 @@ export function AdminWhatsappChat({
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center justify-between gap-3">
-                      <span className={`truncate text-sm text-neutral-900 ${lead.unreadCount > 0 ? "font-bold" : "font-normal"}`}>{lead.name}</span>
+                      <span className={`truncate text-sm text-neutral-900 ${lead.unreadCount > 0 ? "font-bold" : "font-normal"}`}>
+                        {lead.name} ({formatLeadSource(lead.source)})
+                      </span>
                       <span className="shrink-0 text-xs text-neutral-500">{formatTime(lead.lastMessageAt)}</span>
-                    </span>
-                    <span className="mt-1 inline-flex rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-neutral-500">
-                      {formatLeadSource(lead.source)}
                     </span>
                     <span className={`mt-0.5 block truncate text-xs ${lead.unreadCount > 0 ? "font-bold text-neutral-900" : "text-neutral-600"}`}>
                       {lead.lastMessage || lead.phone}
@@ -776,10 +775,10 @@ function buildThreadSections(leads: ChatLead[], showAssigneeGroups: boolean) {
 
   const newLeads = leads
     .filter((lead) => isNewLead(lead))
-    .sort((left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime());
+    .sort(sortByRecentActivity);
   const unassignedLeads = leads
     .filter((lead) => !lead.assignedToUserId && !isNewLead(lead))
-    .sort((left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime());
+    .sort(sortByRecentActivity);
   const assignedLeads = leads.filter((lead) => lead.assignedToUserId);
   const brokerGroups = new Map<string, ChatLead[]>();
 
