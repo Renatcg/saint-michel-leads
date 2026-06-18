@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { requireAdminUser } from "@/lib/admin-auth";
 import { getEvolutionRuntimeSettings, getWuzRuntimeSettings } from "@/lib/integrations";
 
+const WUZ_WEBHOOK_URL = "https://saint-michel-leads.vercel.app/api/wuz/webhook";
+const WUZ_WEBHOOK_EVENTS = ["Message", "HistorySync", "ChatPresence"];
+
 export async function GET() {
   const { response } = await requireAdminUser(["ADMIN", "MANAGER"]);
 
@@ -16,6 +19,21 @@ export async function GET() {
     evolution,
     wuz,
   });
+}
+
+export async function POST() {
+  const { response } = await requireAdminUser(["ADMIN", "MANAGER"]);
+
+  if (response) {
+    return response;
+  }
+
+  const result = await setWuzWebhook();
+
+  return NextResponse.json({
+    ok: result.ok,
+    wuz: result,
+  }, { status: result.ok ? 200 : 400 });
 }
 
 async function getEvolutionStatus() {
@@ -71,12 +89,17 @@ async function getWuzStatus() {
     return { configured: false, ok: false, error: "WUZ não configurada." };
   }
 
-  const response: Response | Error = await fetch(`${getWuzRequestBaseUrl(settings.apiUrl)}/session/status`, {
-    headers: {
-      token: settings.apiToken,
-    },
-    cache: "no-store",
-  }).catch((error: unknown) => (error instanceof Error ? error : new Error(String(error))));
+  const [session, webhook] = await Promise.all([
+    fetch(`${getWuzRequestBaseUrl(settings.apiUrl)}/session/status`, {
+      headers: {
+        token: settings.apiToken,
+      },
+      cache: "no-store",
+    }).catch((error: unknown) => (error instanceof Error ? error : new Error(String(error)))),
+    getWuzWebhook(settings),
+  ]);
+
+  const response: Response | Error = session;
 
   if (response instanceof Error) {
     return {
@@ -84,6 +107,7 @@ async function getWuzStatus() {
       ok: false,
       status: null,
       state: null,
+      webhook,
       error: response.message,
     };
   }
@@ -95,7 +119,77 @@ async function getWuzStatus() {
     ok: response.ok,
     status: response.status,
     state: extractWuzState(payload),
+    webhook,
     error: response.ok ? null : extractError(payload) || `WUZ retornou status ${response.status}.`,
+  };
+}
+
+async function getWuzWebhook(settings: NonNullable<Awaited<ReturnType<typeof getWuzRuntimeSettings>>>) {
+  const response: Response | Error = await fetch(`${getWuzRequestBaseUrl(settings.apiUrl)}/webhook`, {
+    headers: {
+      token: settings.apiToken,
+    },
+    cache: "no-store",
+  }).catch((error: unknown) => (error instanceof Error ? error : new Error(String(error))));
+
+  if (response instanceof Error) {
+    return {
+      ok: false,
+      status: null,
+      error: response.message,
+    };
+  }
+
+  const payload = await response.json().catch(() => null);
+
+  return {
+    ok: response.ok,
+    status: response.status,
+    webhook: extractWuzWebhookUrl(payload),
+    events: extractWuzWebhookEvents(payload),
+    hasMessageEvent: extractWuzWebhookEvents(payload).includes("Message"),
+    isExpectedUrl: extractWuzWebhookUrl(payload) === WUZ_WEBHOOK_URL,
+    error: response.ok ? null : extractError(payload) || `WUZ webhook retornou status ${response.status}.`,
+  };
+}
+
+async function setWuzWebhook() {
+  const settings = await getWuzRuntimeSettings();
+
+  if (!settings) {
+    return { configured: false, ok: false, error: "WUZ não configurada." };
+  }
+
+  const response: Response | Error = await fetch(`${getWuzRequestBaseUrl(settings.apiUrl)}/webhook`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      token: settings.apiToken,
+    },
+    body: JSON.stringify({
+      webhook: WUZ_WEBHOOK_URL,
+      events: WUZ_WEBHOOK_EVENTS,
+    }),
+    cache: "no-store",
+  }).catch((error: unknown) => (error instanceof Error ? error : new Error(String(error))));
+
+  if (response instanceof Error) {
+    return {
+      configured: true,
+      ok: false,
+      error: response.message,
+    };
+  }
+
+  const payload = await response.json().catch(() => null);
+
+  return {
+    configured: true,
+    ok: response.ok,
+    status: response.status,
+    webhook: extractWuzWebhookUrl(payload) || WUZ_WEBHOOK_URL,
+    events: extractWuzWebhookEvents(payload),
+    error: response.ok ? null : extractError(payload) || `WUZ webhook retornou status ${response.status}.`,
   };
 }
 
@@ -126,6 +220,27 @@ function extractError(payload: unknown) {
   const data = getRecord(record?.data);
 
   return getString(record?.error) || getString(record?.message) || getString(record?.Details) || getString(data?.error) || getString(data?.message) || null;
+}
+
+function extractWuzWebhookUrl(payload: unknown) {
+  const record = getRecord(payload);
+  const data = getRecord(record?.data);
+
+  return getString(data?.webhook) || getString(data?.WebhookURL) || getString(record?.webhook) || getString(record?.WebhookURL) || null;
+}
+
+function extractWuzWebhookEvents(payload: unknown) {
+  const record = getRecord(payload);
+  const data = getRecord(record?.data);
+  const candidates = [data?.subscribe, data?.events, data?.Events, record?.subscribe, record?.events, record?.Events];
+
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
+      return candidate.filter((item): item is string => typeof item === "string");
+    }
+  }
+
+  return [];
 }
 
 function getWuzRequestBaseUrl(apiUrl: string) {
