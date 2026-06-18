@@ -1,6 +1,6 @@
 import { DeliveryStatus, MessageChannel, MessageTrigger, type Lead, type MessageTemplate } from "@prisma/client";
 import { Resend } from "resend";
-import { getActiveWhatsappProvider, sendWhatsappTextMessage } from "@/lib/integrations";
+import { sendEvolutionTextMessage } from "@/lib/integrations";
 import { buildSalesContactUrl, getLandingSettings } from "@/lib/landing";
 import { getPrisma } from "@/lib/prisma";
 import { markdownToHtml } from "@/lib/rich-content";
@@ -151,14 +151,12 @@ async function sendEmailSchedule(schedule: TemplateWithLead) {
 
 async function sendWhatsappSchedule(schedule: TemplateWithLead) {
   const prisma = getPrisma();
-  const salesContactUrl = await getSalesContactUrl();
-  const renderedBody = renderMessageTemplate(schedule.template.body, schedule.lead, { salesContactUrl });
-  const text = stripRichContent(replaceSalesContactLinks(renderedBody, salesContactUrl));
-  const whatsappProvider = await getActiveWhatsappProvider();
-  const providerPrefix = whatsappProvider === "WUZ" ? "wuz" : "evolution";
 
   try {
-    const result = await sendWhatsappTextMessage({
+    const salesContactUrl = await getSalesContactUrl();
+    const renderedBody = renderMessageTemplate(schedule.template.body, schedule.lead, { salesContactUrl });
+    const text = stripRichContent(replaceSalesContactLinks(renderedBody, salesContactUrl));
+    const result = await sendEvolutionTextMessage({
       number: schedule.lead.phone,
       text,
     });
@@ -173,8 +171,8 @@ async function sendWhatsappSchedule(schedule: TemplateWithLead) {
           content: text,
           direction: "OUTBOUND",
           readAt: new Date(),
-          provider: providerPrefix,
-          providerId: extractProviderMessageId(result),
+          provider: "evolution",
+          providerId: result?.key?.id,
         } as never,
       }),
       prisma.messageSchedule.update({
@@ -196,10 +194,10 @@ async function sendWhatsappSchedule(schedule: TemplateWithLead) {
           templateId: schedule.template.id,
           channel: MessageChannel.WHATSAPP,
           status: DeliveryStatus.FAILED,
-          content: text,
+          content: schedule.template.body,
           direction: "OUTBOUND",
           readAt: new Date(),
-          provider: providerPrefix,
+          provider: "evolution",
           errorMessage,
         } as never,
       }),
@@ -214,32 +212,15 @@ async function sendWhatsappSchedule(schedule: TemplateWithLead) {
   }
 }
 
-function extractProviderMessageId(result: unknown) {
-  if (!result || typeof result !== "object") {
-    return null;
-  }
-
-  const record = result as Record<string, unknown>;
-  const key = record.key && typeof record.key === "object" ? (record.key as Record<string, unknown>) : null;
-
-  return typeof key?.id === "string"
-    ? key.id
-    : typeof record.id === "string"
-      ? record.id
-      : typeof record.messageId === "string"
-        ? record.messageId
-        : null;
-}
-
 async function getResendSettings(): Promise<ResendSettings | null> {
   const prisma = getPrisma();
   const settings = await prisma.integrationSettings.findFirst({
     orderBy: { updatedAt: "desc" },
   });
 
-  const apiKey = settings?.resendApiKey || process.env.RESEND_API_KEY;
-  const fromEmail = settings?.resendFromEmail || process.env.RESEND_FROM_EMAIL;
-  const fromName = settings?.resendFromName || process.env.RESEND_FROM_NAME || "Saint Michel Construtora";
+  const apiKey = process.env.RESEND_API_KEY || settings?.resendApiKey;
+  const fromEmail = process.env.RESEND_FROM_EMAIL || settings?.resendFromEmail;
+  const fromName = process.env.RESEND_FROM_NAME || settings?.resendFromName || "Saint Michel Construtora";
 
   if (!apiKey || !fromEmail) {
     return null;

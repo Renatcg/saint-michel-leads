@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdminUser } from "@/lib/admin-auth";
 import { canViewAllLeads } from "@/lib/auth";
-import { getActiveWhatsappProvider, sendWhatsappMediaMessage, sendWhatsappTextMessage } from "@/lib/integrations";
+import { sendEvolutionMediaMessage, sendEvolutionTextMessage } from "@/lib/integrations";
 import { getPrisma } from "@/lib/prisma";
 
 const chatMessageSchema = z.object({
@@ -80,19 +80,17 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   const leadMessageText = formatMessageForLead(senderName, parsed.data.text);
-  const whatsappProvider = await getActiveWhatsappProvider();
-  const providerPrefix = whatsappProvider === "WUZ" ? "wuz" : "evolution";
 
   try {
     const result = parsed.data.attachment
-      ? await sendWhatsappMediaMessage({
+      ? await sendEvolutionMediaMessage({
           number: lead.phone,
           caption: leadMessageText,
           mediaUrl: parsed.data.attachment.url,
           fileName: parsed.data.attachment.name,
           mimeType: parsed.data.attachment.type,
         })
-      : await sendWhatsappTextMessage({
+      : await sendEvolutionTextMessage({
           number: lead.phone,
           text: leadMessageText,
         });
@@ -109,8 +107,8 @@ export async function POST(request: Request, context: RouteContext) {
         direction: "OUTBOUND",
         senderName,
         readAt: new Date(),
-        provider: `${providerPrefix}-manual`,
-        providerId: extractProviderMessageId(result),
+        provider: "evolution-manual",
+        providerId: typeof result?.key?.id === "string" ? result.key.id : null,
       } as never,
     });
     await prisma.lead.update({
@@ -124,7 +122,7 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({
       ok: true,
       leadId: lead.id,
-      providerId: extractProviderMessageId(result),
+      providerId: typeof result?.key?.id === "string" ? result.key.id : null,
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Falha ao enviar WhatsApp.";
@@ -141,28 +139,11 @@ export async function POST(request: Request, context: RouteContext) {
         direction: "OUTBOUND",
         senderName,
         readAt: new Date(),
-        provider: `${providerPrefix}-manual`,
+        provider: "evolution-manual",
         errorMessage,
       } as never,
     });
 
     return NextResponse.json({ error: errorMessage }, { status: 502 });
   }
-}
-
-function extractProviderMessageId(result: unknown) {
-  if (!result || typeof result !== "object") {
-    return null;
-  }
-
-  const record = result as Record<string, unknown>;
-  const key = record.key && typeof record.key === "object" ? (record.key as Record<string, unknown>) : null;
-
-  return typeof key?.id === "string"
-    ? key.id
-    : typeof record.id === "string"
-      ? record.id
-      : typeof record.messageId === "string"
-        ? record.messageId
-        : null;
 }

@@ -67,6 +67,7 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
             assignedToUserId: currentUser.id,
           },
       orderBy: { updatedAt: "desc" },
+      take: 100,
       include: {
         assignedTo: {
           select: {
@@ -190,19 +191,9 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
             unreadCount: Number(lastLog?.unreadCount ?? 0),
             isFavorite: lead.favorites.length > 0,
           };
-        }).sort(sortByRecentActivity).slice(0, 100)}
+        })}
         showAssigneeGroups={canViewAll}
       />
     </AdminShell>
   );
-}
-
-function sortByRecentActivity(
-  left: { lastMessageAt: string | null; createdAt: string },
-  right: { lastMessageAt: string | null; createdAt: string },
-) {
-  const leftTime = new Date(left.lastMessageAt ?? left.createdAt).getTime();
-  const rightTime = new Date(right.lastMessageAt ?? right.createdAt).getTime();
-
-  return rightTime - leftTime;
 }

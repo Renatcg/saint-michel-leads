@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { requireAdminUser } from "@/lib/admin-auth";
 import { replaceEvolutionHistoryForLeads, syncEvolutionHistoryForLeads } from "@/lib/evolution-history";
 import { getPrisma } from "@/lib/prisma";
-import { replaceWuzHistoryForLeads, syncWuzHistoryForLeads } from "@/lib/wuz-history";
 
 export async function POST(request: Request) {
   const { response } = await requireAdminUser(["ADMIN", "MANAGER"]);
@@ -21,29 +20,19 @@ export async function POST(request: Request) {
   });
 
   if (reset) {
-    const [evolution, wuz] = await Promise.all([
-      replaceEvolutionHistoryForLeads(leads),
-      replaceWuzHistoryForLeads(leads),
-    ]);
+    const result = await replaceEvolutionHistoryForLeads(leads);
 
     return NextResponse.json({
       ok: true,
       reset: true,
-      evolution,
-      wuz,
+      ...result,
     });
   }
 
-  const [evolutionSynced, wuzSynced] = await Promise.all([
-    syncEvolutionHistoryForLeads(leads),
-    syncWuzHistoryForLeads(leads),
-  ]);
+  const synced = await syncEvolutionHistoryForLeads(leads);
 
   return NextResponse.json({
     ok: true,
-    synced: {
-      evolution: evolutionSynced,
-      wuz: wuzSynced,
-    },
+    synced,
   });
 }
