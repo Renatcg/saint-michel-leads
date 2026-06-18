@@ -180,6 +180,7 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
             name: lead.name,
             email: lead.email,
             phone: lead.phone,
+            source: lead.source,
             status: lead.status,
             assignedToUserId: lead.assignedToUserId,
             assignedToName: lead.assignedTo?.name ?? null,

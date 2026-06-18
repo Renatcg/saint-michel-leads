@@ -46,6 +46,31 @@ export async function fetchEvolutionHistoryForLead(lead: Pick<Lead, "id" | "phon
   }
 
   const remoteJid = `${normalizeWhatsappNumber(lead.phone)}@s.whatsapp.net`;
+  const [remoteJidPayload, remoteJidAltPayload] = await Promise.all([
+    fetchEvolutionMessagesPayload(settings, { remoteJid }),
+    fetchEvolutionMessagesPayload(settings, { remoteJidAlt: remoteJid }),
+  ]);
+  const messages = [...extractEvolutionMessages(remoteJidPayload), ...extractEvolutionMessages(remoteJidAltPayload)];
+  const seen = new Set<string>();
+
+  return messages.filter((message) => {
+    const messagePhone = normalizeWhatsappNumber(message.remoteJid.split("@")[0] ?? "");
+    const matchesLead = message.remoteJid === remoteJid || messagePhone === normalizeWhatsappNumber(lead.phone) || !message.remoteJid;
+    const key = message.id || `${message.remoteJid}-${message.createdAt.toISOString()}-${message.text}`;
+
+    if (!matchesLead || seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+}
+
+async function fetchEvolutionMessagesPayload(
+  settings: NonNullable<Awaited<ReturnType<typeof getEvolutionRuntimeSettings>>>,
+  keyFilter: Record<string, string>,
+) {
   const response = await fetch(`${settings.apiUrl}/chat/findMessages/${encodeURIComponent(settings.instanceName)}`, {
     method: "POST",
     headers: {
@@ -54,20 +79,17 @@ export async function fetchEvolutionHistoryForLead(lead: Pick<Lead, "id" | "phon
     },
     body: JSON.stringify({
       where: {
-        key: {
-          remoteJid,
-        },
+        key: keyFilter,
       },
     }),
     cache: "no-store",
   });
 
   if (!response.ok) {
-    return [];
+    return null;
   }
 
-  const payload = await response.json().catch(() => null);
-  return extractEvolutionMessages(payload).filter((message) => message.remoteJid === remoteJid || !message.remoteJid);
+  return response.json().catch(() => null);
 }
 
 export async function syncEvolutionHistoryForLeads(leads: Pick<Lead, "id" | "phone">[]) {
@@ -170,7 +192,7 @@ function flattenPotentialMessages(value: unknown): Record<string, unknown>[] {
 function parseEvolutionMessage(record: Record<string, unknown>) {
   const key = getRecord(record.key);
   const message = getRecord(record.message) ?? record;
-  const remoteJid = getString(key?.remoteJid) || getString(record.remoteJid);
+  const remoteJid = getString(key?.remoteJidAlt) || getString(key?.remoteJid) || getString(record.remoteJid);
   const timestamp = Number(record.messageTimestamp || record.messageTimestampS || record.createdAt || record.timestamp);
   const createdAt = Number.isFinite(timestamp)
     ? new Date(timestamp > 10_000_000_000 ? timestamp : timestamp * 1000)

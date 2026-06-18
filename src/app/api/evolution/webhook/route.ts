@@ -2,6 +2,11 @@ import { DeliveryStatus, MessageChannel } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { getPrisma } from "@/lib/prisma";
 
+const META_ORIGENS_MESSAGES = new Set([
+  normalizeMetaMessage("Olá! Quero maisi informações sobre o Origens Panorama, por favor."),
+  normalizeMetaMessage("Olá! Quero mais informações sobre o Origens Panorama, por favor."),
+]);
+
 export async function POST(request: Request) {
   const secret = process.env.EVOLUTION_WEBHOOK_SECRET;
 
@@ -18,7 +23,7 @@ export async function POST(request: Request) {
 
   const prisma = getPrisma();
   const phone = normalizeDigits(event.phone);
-  const lead = await prisma.lead.findFirst({
+  let lead = await prisma.lead.findFirst({
     where: {
       phone: {
         contains: phone.slice(-8),
@@ -28,7 +33,16 @@ export async function POST(request: Request) {
   });
 
   if (!lead) {
-    return NextResponse.json({ ok: true, ignored: true, reason: "lead_not_found" });
+    lead = await prisma.lead.create({
+      data: {
+        name: event.pushName || `WhatsApp ${formatPhoneLabel(phone)}`,
+        email: `whatsapp-${phone}@saint-michel.local`,
+        phone,
+        source: getWhatsappLeadSource(event.text),
+        lastInboundAt: new Date(),
+      },
+      select: { id: true },
+    });
   }
 
   if (event.id) {
@@ -77,9 +91,9 @@ function extractEvolutionMessage(payload: unknown) {
   const data = getRecord(record?.data) ?? record;
   const key = getRecord(data?.key);
   const message = getRecord(data?.message);
-  const remoteJid = String(key?.remoteJid || data?.remoteJid || "");
+  const remoteJid = getString(key?.remoteJidAlt) || getString(key?.remoteJid) || getString(data?.remoteJid);
   const fromMe = parseBoolean(key?.fromMe ?? data?.fromMe);
-  const phone = remoteJid.split("@")[0] || String(data?.number || data?.phone || "");
+  const phone = remoteJid.split("@")[0] || getString(data?.number) || getString(data?.phone);
   const text =
     getString(message?.conversation) ||
     getString(getRecord(message?.extendedTextMessage)?.text) ||
@@ -96,6 +110,7 @@ function extractEvolutionMessage(payload: unknown) {
   return {
     id: getString(key?.id) || getString(data?.id) || null,
     phone,
+    pushName: getString(data?.pushName),
     fromMe,
     text,
     attachmentUrl: getString(media?.url) || null,
@@ -126,4 +141,22 @@ function parseBoolean(value: unknown) {
 
 function normalizeDigits(value: string) {
   return value.replace(/\D/g, "");
+}
+
+function getWhatsappLeadSource(text: string) {
+  return META_ORIGENS_MESSAGES.has(normalizeMetaMessage(text)) ? "meta" : "whatsapp_avulso";
+}
+
+function normalizeMetaMessage(text: string) {
+  return text.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function formatPhoneLabel(phone: string) {
+  const digits = normalizeDigits(phone);
+
+  if (digits.length <= 4) {
+    return digits || "sem número";
+  }
+
+  return digits.slice(-4);
 }

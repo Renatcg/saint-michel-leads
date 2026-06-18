@@ -9,6 +9,7 @@ type ChatLead = {
   name: string;
   email: string;
   phone: string;
+  source: string;
   status: string;
   assignedToUserId: string | null;
   assignedToName: string | null;
@@ -532,6 +533,9 @@ export function AdminWhatsappChat({
                       <span className={`truncate text-sm text-neutral-900 ${lead.unreadCount > 0 ? "font-bold" : "font-normal"}`}>{lead.name}</span>
                       <span className="shrink-0 text-xs text-neutral-500">{formatTime(lead.lastMessageAt)}</span>
                     </span>
+                    <span className="mt-1 inline-flex rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-neutral-500">
+                      {formatLeadSource(lead.source)}
+                    </span>
                     <span className={`mt-0.5 block truncate text-xs ${lead.unreadCount > 0 ? "font-bold text-neutral-900" : "text-neutral-600"}`}>
                       {lead.lastMessage || lead.phone}
                     </span>
@@ -743,6 +747,18 @@ function scrollToBottom(element: HTMLDivElement | null, fallback: HTMLDivElement
 
 function sumUnreadMessages(leads: ChatLead[]) {
   return leads.reduce((total, lead) => total + lead.unreadCount, 0);
+}
+
+function formatLeadSource(source: string) {
+  if (source === "meta") {
+    return "Meta";
+  }
+
+  if (source === "whatsapp_avulso") {
+    return "Avulso";
+  }
+
+  return "LP";
 }
 
 function buildThreadSections(leads: ChatLead[], showAssigneeGroups: boolean) {
