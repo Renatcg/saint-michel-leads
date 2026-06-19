@@ -17,7 +17,7 @@ export async function POST(request: Request) {
   const payload = await request.json().catch(() => null);
   const event = extractEvolutionMessage(payload);
 
-  if (!event?.phone || event.fromMe || (!event.text && !event.attachmentUrl)) {
+  if (!event?.phone || event.unresolvedLid || event.fromMe || (!event.text && !event.attachmentUrl)) {
     return NextResponse.json({ ok: true, ignored: true });
   }
 
@@ -91,7 +91,9 @@ function extractEvolutionMessage(payload: unknown) {
   const data = getRecord(record?.data) ?? record;
   const key = getRecord(data?.key);
   const message = getRecord(data?.message);
-  const remoteJid = getString(key?.remoteJidAlt) || getString(key?.remoteJid) || getString(data?.remoteJid);
+  const rawRemoteJid = getString(key?.remoteJid) || getString(data?.remoteJid);
+  const remoteJidAlt = getString(key?.remoteJidAlt);
+  const remoteJid = remoteJidAlt || rawRemoteJid;
   const fromMe = parseBoolean(key?.fromMe ?? data?.fromMe);
   const phone = remoteJid.split("@")[0] || getString(data?.number) || getString(data?.phone);
   const text =
@@ -110,6 +112,7 @@ function extractEvolutionMessage(payload: unknown) {
   return {
     id: getString(key?.id) || getString(data?.id) || null,
     phone,
+    unresolvedLid: !remoteJidAlt && rawRemoteJid.endsWith("@lid"),
     pushName: getString(data?.pushName),
     fromMe,
     text,
