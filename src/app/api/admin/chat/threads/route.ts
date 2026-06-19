@@ -17,20 +17,42 @@ type OutboundCountRow = {
   outboundCount: bigint;
 };
 
-export async function GET() {
+export async function GET(request: Request) {
   const { response, user } = await requireAdminUser();
 
   if (response || !user) {
     return response;
   }
 
+  const { searchParams } = new URL(request.url);
+  const query = searchParams.get("q")?.trim() ?? "";
+  const phoneQuery = query.replace(/\D/g, "");
   const prisma = getPrisma();
   const leads = await prisma.lead.findMany({
-    where: canViewAllLeads(user.role)
-      ? undefined
-      : {
-          assignedToUserId: user.id,
-        },
+    where: {
+      ...(canViewAllLeads(user.role) ? {} : { assignedToUserId: user.id }),
+      ...(query
+        ? {
+            OR: [
+              {
+                name: {
+                  contains: query,
+                  mode: Prisma.QueryMode.insensitive,
+                },
+              },
+              ...(phoneQuery
+                ? [
+                    {
+                      phone: {
+                        contains: phoneQuery,
+                      },
+                    },
+                  ]
+                : []),
+            ],
+          }
+        : {}),
+    },
     orderBy: { updatedAt: "desc" },
     include: {
       assignedTo: {
